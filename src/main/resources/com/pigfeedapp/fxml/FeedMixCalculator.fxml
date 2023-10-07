@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.cell.PropertyValueFactory?>
+<?import com.pigfeedapp.controller.CustomTableView?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.pigfeedapp.controller.FeedMixCalculatorController">
+
+    <!-- Top area of the BorderPane for the "Back" button -->
+    <top>
+        <HBox alignment="TOP_LEFT" spacing="10">
+            <!-- "Back" button to navigate to the main screen -->
+            <Button text="Back" onAction="#navigateToMainScreen"/>
+        </HBox>
+    </top>
+
+    <!-- Center area of the BorderPane for the rest of the content -->
+    <center>
+        <AnchorPane>
+            <ScrollPane fitToWidth="true" AnchorPane.topAnchor="0" AnchorPane.bottomAnchor="0" AnchorPane.leftAnchor="0"
+                        AnchorPane.rightAnchor="0">
+                <VBox fx:id="myVBox" VBox.vgrow="ALWAYS">
+                    <children>
+                        <Label text="Here we will calculate your pig feed mix." GridPane.rowIndex="0"/>
+                        <TitledPane text="Add Ingredient" animated="true" collapsible="true">
+                            <content>
+                                <VBox alignment="CENTER" spacing="10">
+                                    <Region VBox.vgrow="ALWAYS"/>
+                                    <!-- Main intro labels for the feed mix calculator screen -->
+                                    <Label text="Let's add your ingredients"/>
+
+                                    <!-- Row with ComboBox for selecting predefined ingredients and TextField for custom input -->
+                                    <HBox alignment="CENTER" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.rowIndex="2">
+                                        <!-- Dropdown for selecting predefined ingredients -->
+                                        <ComboBox fx:id="ingredientDropdown" prefWidth="150"
+                                                  promptText="Select Ingredient"/>
+                                        <!-- Input field for custom ingredients -->
+                                        <TextField fx:id="ingredientField" promptText="Type custom ingredient..."/>
+                                    </HBox>
+
+                                    <!-- Grid layout for inputting feed ingredient details -->
+                                    <GridPane fx:id="mainGridPane" hgap="10" vgap="10">
+                                        <!-- Row for Crude Protein input -->
+                                        <Label text="Crude Protein %" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                                        <TextField fx:id="crudeProteinField" GridPane.columnIndex="1"
+                                                   GridPane.rowIndex="0"/>
+
+                                        <!-- Row for Crude Fat input -->
+                                        <Label text="Crude Fat %" GridPane.columnIndex="2" GridPane.rowIndex="0"/>
+                                        <TextField fx:id="crudeFatField" GridPane.columnIndex="3"
+                                                   GridPane.rowIndex="0"/>
+
+                                        <!-- Row for Crude Fiber input -->
+                                        <Label text="Crude Fiber %" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                                        <TextField fx:id="crudeFiberField" GridPane.columnIndex="1"
+                                                   GridPane.rowIndex="1"/>
+
+                                        <!-- Row for Lysine input -->
+                                        <Label text="Lysine %" GridPane.columnIndex="2" GridPane.rowIndex="1"/>
+                                        <TextField fx:id="lysineField" GridPane.columnIndex="3" GridPane.rowIndex="1"/>
+
+                                        <!-- "Save Ingredient" button -->
+                                        <HBox alignment="CENTER" GridPane.columnIndex="0" GridPane.columnSpan="4" GridPane.rowIndex="2">
+                                            <Button text="Save Ingredient" onAction="#saveIngredientInfo"/>
+                                        </HBox>
+                                    </GridPane>
+                                    <Region VBox.vgrow="ALWAYS"/>
+                                </VBox>
+                            </content>
+                        </TitledPane>
+
+                        <!-- The TableView for displaying the feed mix -->
+                        <GridPane vgap="10">
+                            <CustomTableView fx:id="feedMixTable" GridPane.rowIndex="0">
+                                <columns>
+                                    <!-- The "Ingredient" column. Displays the name of each ingredient -->
+                                    <TableColumn fx:id="ingredientCol" text="Ingredient">
+                                        <!-- The cell value factory for the "Ingredient" column -->
+                                        <!-- This tells the table to call the getName() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="name"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Weight" column. Displays the weight of each ingredient -->
+                                    <TableColumn fx:id="weightCol" text="Weight">
+                                        <!-- The cell value factory for the "Weight" column -->
+                                        <!-- This tells the table to call the getWeight() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="weight"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Crude Protein %" column. Displays the crude protein content of each ingredient -->
+                                    <TableColumn fx:id="crudeProteinCol" text="Crude Protein %">
+                                        <!-- The cell value factory for the "Crude Protein %" column -->
+                                        <!-- This tells the table to call the getCrudeProtein() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="crudeProtein"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Crude Fat %" column. Displays the crude fat content of each ingredient -->
+                                    <TableColumn fx:id="crudeFatCol" text="Crude Fat %">
+                                        <!-- The cell value factory for the "Crude Fat %" column -->
+                                        <!-- This tells the table to call the getCrudeFat() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="crudeFat"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Crude Fiber %" column. Displays the crude fiber content of each ingredient -->
+                                    <TableColumn fx:id="crudeFiberCol" text="Crude Fiber %">
+                                        <!-- The cell value factory for the "Crude Fiber %" column -->
+                                        <!-- This tells the table to call the getCrudeFiber() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="crudeFiber"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Lysine %" column. Displays the lysine content of each ingredient -->
+                                    <TableColumn fx:id="lysineCol" text="Lysine %">
+                                        <!-- The cell value factory for the "Lysine %" column -->
+                                        <!-- This tells the table to call the getLysine() method of the Ingredient object to get the value to display in each cell -->
+                                        <cellValueFactory>
+                                            <PropertyValueFactory property="lysine"/>
+                                        </cellValueFactory>
+                                    </TableColumn>
+                                    <!-- The "Delete" column. No cell value factory is needed here -->
+                                    <TableColumn fx:id="deleteCol">
+                                    </TableColumn>
+                                </columns>
+                            </CustomTableView>
+
+                            <Label fx:id="totalLabel" text="Total" GridPane.rowIndex="1"/>
+                            <!-- The TableView for displaying the total -->
+                            <CustomTableView fx:id="totalTable" GridPane.rowIndex="2">
+                                <columns>
+                                    <!-- Empty column to align with the "Ingredient" column in the Ingredients table -->
+                                    <TableColumn fx:id="emptyCol" prefWidth="75"/>
+                                    <!-- The "Total Weight" column. Displays the total weight of all ingredients -->
+                                    <TableColumn fx:id="totalWeightCol" text="Weight" prefWidth="58">
+                                        <!-- ... existing cell value factory ... -->
+                                    </TableColumn>
+
+                                    <!-- The "Total Crude Protein" column. Displays the total crude protein content of all ingredients -->
+                                    <TableColumn fx:id="totalCrudeProteinCol" text="Crude Protein %" prefWidth="108">
+                                        <!-- ... existing cell value factory ... -->
+                                    </TableColumn>
+
+                                    <!-- The "Total Crude Fat" column. Displays the total crude fat content of all ingredients -->
+                                    <TableColumn fx:id="totalCrudeFatCol" text="Crude Fat %" prefWidth="85">
+                                        <!-- ... existing cell value factory ... -->
+                                    </TableColumn>
+
+                                    <!-- The "Total Crude Fiber" column. Displays the total crude fiber content of all ingredients -->
+                                    <TableColumn fx:id="totalCrudeFiberCol" text="Crude Fiber %" prefWidth="94">
+                                        <!-- ... existing cell value factory ... -->
+                                    </TableColumn>
+
+                                    <!-- The "Total Lysine" column. Displays the total lysine content of all ingredients -->
+                                    <TableColumn fx:id="totalLysineCol" text="Lysine %" prefWidth="65">
+                                        <!-- ... existing cell value factory ... -->
+                                    </TableColumn>
+                                </columns>
+                            </CustomTableView>
+                        </GridPane>
+                    </children>
+                </VBox>
+            </ScrollPane>
+        </AnchorPane>
+    </center>
+
+</BorderPane>
