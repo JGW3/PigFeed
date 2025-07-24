@@ -4,6 +4,7 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+<<<<<<< HEAD
   <groupId>com.pigfeedapp</groupId>
   <artifactId>PigFeedApp</artifactId>
   <version>1.0-SNAPSHOT</version>
@@ -18,13 +19,49 @@
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-controls</artifactId>
       <version>20</version>
+=======
+  <groupId>org.pigfeed</groupId>
+  <artifactId>PigFeedApp</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <name>PigFeedApp</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+<junit.version>5.10.2</junit.version>  </properties>
+
+  <dependencies>
+      <dependency>
+          <groupId>org.xerial</groupId>
+          <artifactId>sqlite-jdbc</artifactId>
+          <version>3.36.0.3</version>
+      </dependency>
+      <dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-controls</artifactId>
+      <version>17.0.2</version>
+>>>>>>> 59aaf01 (Fixes and more)
     </dependency>
     <dependency>
       <groupId>org.openjfx</groupId>
       <artifactId>javafx-fxml</artifactId>
+<<<<<<< HEAD
       <version>20</version>
     </dependency>
 
+=======
+      <version>17.0.2</version>
+    </dependency>
+<dependency>
+      <groupId>org.openjfx</groupId>
+      <artifactId>javafx-web</artifactId>
+      <version>17.0.2</version>
+    </dependency>
+      <dependency>
+        <groupId>org.openjfx</groupId>
+        <artifactId>javafx-swing</artifactId>
+        <version>17.0.2</version>
+      </dependency>
+>>>>>>> 59aaf01 (Fixes and more)
 <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter-api</artifactId>
@@ -43,10 +80,17 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
+<<<<<<< HEAD
         <version>3.11.0</version>
         <configuration>
           <source>20</source>
           <target>20</target>
+=======
+        <version>3.13.0</version>
+        <configuration>
+          <source>17</source>
+          <target>17</target>
+>>>>>>> 59aaf01 (Fixes and more)
         </configuration>
       </plugin>
       <plugin>
@@ -58,7 +102,11 @@
             <!-- Default configuration for running with: mvn clean javafx:run -->
             <id>default-cli</id>
             <configuration>
+<<<<<<< HEAD
               <mainClass>com.pigfeedapp.pigfeedapp/com.pigfeedapp.pigfeedapp.HelloApplication</mainClass>
+=======
+              <mainClass>org.pigfeed.pigfeedapp/org.pigfeed.pigfeedapp.Main</mainClass>
+>>>>>>> 59aaf01 (Fixes and more)
               <launcher>app</launcher>
               <jlinkZipName>app</jlinkZipName>
               <jlinkImageName>app</jlinkImageName>
