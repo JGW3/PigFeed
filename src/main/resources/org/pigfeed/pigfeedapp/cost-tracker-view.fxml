@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.TitledPane?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.ColumnConstraints?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns="http://javafx.com/javafx/8"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="org.pigfeed.pigfeedapp.controllers.CostTrackerController"
+            style="-fx-padding: 10;">
+
+  <!-- Top: Cost Entry Panel -->
+  <top>
+    <TitledPane fx:id="entryPane" text="Add Cost Entry" collapsible="true" expanded="true">
+      <content>
+        <GridPane hgap="10" vgap="8" style="-fx-padding: 10;">
+          <columnConstraints>
+            <ColumnConstraints halignment="RIGHT"/>
+            <ColumnConstraints hgrow="ALWAYS"/>
+          </columnConstraints>
+
+          <Label text="Date:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+          <DatePicker fx:id="datePicker" prefWidth="200"
+                     GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+          <Label text="Item Description:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+          <TextField fx:id="descriptionField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+
+          <Label text="Expense Type:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+          <ComboBox fx:id="expenseTypeCombo" prefWidth="200" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+
+          <Label text="Cost ($):" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+          <TextField fx:id="costField" GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+          <Label text="Quantity:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+          <TextField fx:id="quantityField" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+          <Button text="Add Entry"
+                  onAction="#addCostEntry"
+                  GridPane.rowIndex="5" GridPane.columnIndex="1"
+                  HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+        </GridPane>
+      </content>
+    </TitledPane>
+  </top>
+
+  <!-- Center: Cost Table -->
+  <center>
+    <TableView fx:id="costTable" VBox.vgrow="ALWAYS">
+      <columns>
+        <TableColumn fx:id="dateCol" text="Date" prefWidth="100"/>
+        <TableColumn fx:id="descriptionCol" text="Description" prefWidth="150"/>
+        <TableColumn fx:id="categoryCol" text="Expense Type" prefWidth="120"/>
+        <TableColumn fx:id="costCol" text="Cost ($)" prefWidth="80"/>
+        <TableColumn fx:id="quantityCol" text="Quantity" prefWidth="80"/>
+        <TableColumn fx:id="totalCol" text="Total ($)" prefWidth="80"/>
+      </columns>
+    </TableView>
+  </center>
+
+  <!-- Bottom: Controls and Summary -->
+  <bottom>
+    <VBox spacing="10" style="-fx-padding: 10;">
+      <children>
+        <HBox alignment="CENTER_LEFT" spacing="20">
+          <children>
+            <Label fx:id="totalCostLabel" text="Total Cost: $0.00" 
+                   style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+            <Label fx:id="entryCountLabel" text="Entries: 0"/>
+          </children>
+        </HBox>
+        <HBox alignment="CENTER_RIGHT" spacing="10">
+          <children>
+            <Button text="Spending Reports"
+                    onAction="#showSpendingReports"
+                    style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;"/>
+            <Button text="Back to Welcome"
+                    onAction="#backToWelcome"/>
+            <Button text="Clear All"
+                    onAction="#clearAllEntries"/>
+          </children>
+        </HBox>
+      </children>
+    </VBox>
+  </bottom>
+
+</BorderPane>
