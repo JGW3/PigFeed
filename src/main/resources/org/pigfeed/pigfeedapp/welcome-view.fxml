@@ -20,13 +20,15 @@
 
   <!-- Top: title -->
   <top>
-    <Text text="Welcome to the Pig Feed App"
-          style="-fx-font-size: 24px; -fx-font-weight: bold;"
-          textAlignment="CENTER">
-      <BorderPane.margin>
-        <Insets top="0" right="0" bottom="10" left="0"/>
-      </BorderPane.margin>
-    </Text>
+    <VBox alignment="CENTER">
+      <Text text="Welcome to the Pig Feed App"
+            style="-fx-font-size: 24px; -fx-font-weight: bold;"
+            textAlignment="CENTER">
+        <VBox.margin>
+          <Insets top="0" right="0" bottom="10" left="0"/>
+        </VBox.margin>
+      </Text>
+    </VBox>
   </top>
 
   <!-- Center: logo -->
@@ -35,7 +37,7 @@
                fitWidth="150"
                preserveRatio="true">
       <image>
-        <Image url="@pigLogo.png"/>
+        <Image url="@../../../images/pigLogo.png"/>
       </image>
       <BorderPane.margin>
         <Insets top="0" right="0" bottom="20" left="0"/>
@@ -55,6 +57,11 @@
                 text="Pig Cost Tracker"
                 onAction="#onCostTracker"
                 maxWidth="200"/>
+        <Button fx:id="aboutButton"
+                text="About"
+                onAction="#onAbout"
+                maxWidth="120"
+                style="-fx-background-color: #607D8B; -fx-text-fill: white;"/>
       </children>
     </VBox>
   </bottom>

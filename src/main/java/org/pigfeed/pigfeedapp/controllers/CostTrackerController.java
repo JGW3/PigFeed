@@ -20,10 +20,15 @@ public class CostTrackerController {
     private static final String DB_URL = "jdbc:sqlite:pigfeed.db";
 
     // Entry form controls
-    @FXML private TitledPane entryPane;
     @FXML private DatePicker datePicker;
     @FXML private TextField descriptionField;
-    @FXML private TextField categoryField;
+    @FXML private ComboBox<String> expenseTypeCombo;
+    @FXML private Label ingredientLabel;
+    @FXML private javafx.scene.layout.HBox feedTypeBox;
+    @FXML private ComboBox<String> ingredientCombo;
+    @FXML private Button addFeedTypeButton;
+    @FXML private Label priceUnitLabel;
+    @FXML private ComboBox<String> priceUnitCombo;
     @FXML private TextField costField;
     @FXML private TextField quantityField;
 
@@ -34,11 +39,14 @@ public class CostTrackerController {
     @FXML private TableColumn<CostEntry, String> categoryCol;
     @FXML private TableColumn<CostEntry, Number> costCol;
     @FXML private TableColumn<CostEntry, Number> quantityCol;
-    @FXML private TableColumn<CostEntry, Number> totalCol;
+    @FXML private TableColumn<CostEntry, String> unitSizeCol;
+    @FXML private TableColumn<CostEntry, Number> pricePerCol;
+    @FXML private TableColumn<CostEntry, Number> totalCostCol;
 
-    // Summary labels
+    // Summary labels and edit button
     @FXML private Label totalCostLabel;
     @FXML private Label entryCountLabel;
+    @FXML private Button editButton;
 
     private final ObservableList<CostEntry> costData = FXCollections.observableArrayList();
 
@@ -46,14 +54,83 @@ public class CostTrackerController {
     public void initialize() {
         // Initialize date picker to today
         datePicker.setValue(LocalDate.now());
+        
+        // Initialize expense type combo
+        expenseTypeCombo.getItems().addAll("Feed", "Supplements", "Veterinary", "Equipment", "Maintenance", "Other");
+        expenseTypeCombo.setValue("Feed"); // Set Feed as default
+        
+        // Initialize price unit combo
+        priceUnitCombo.getItems().addAll("lb", "50lbs", "100lbs", "ton");
+        // Load last selected price unit, default to 50lbs
+        String lastPriceUnit = loadLastPriceUnit();
+        priceUnitCombo.setValue(lastPriceUnit != null ? lastPriceUnit : "50lbs");
+        
+        // Save price unit when changed
+        priceUnitCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                saveLastPriceUnit(newVal);
+            }
+        });
+        
+        // Show/hide feed type selection based on expense type
+        expenseTypeCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            boolean isFeedExpense = "Feed".equals(newVal);
+            ingredientLabel.setVisible(isFeedExpense);
+            feedTypeBox.setVisible(isFeedExpense);
+            priceUnitLabel.setVisible(isFeedExpense);
+            priceUnitCombo.setVisible(isFeedExpense);
+            if (isFeedExpense && ingredientCombo.getItems().isEmpty()) {
+                loadIngredientsIntoCombo();
+            }
+        });
+        
+        // Initialize with Feed selected
+        ingredientLabel.setVisible(true);
+        feedTypeBox.setVisible(true);
+        priceUnitLabel.setVisible(true);
+        priceUnitCombo.setVisible(true);
+        loadIngredientsIntoCombo();
+        
+        // Auto-populate previous purchase info when ingredient is selected
+        ingredientCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null && !newVal.isEmpty()) {
+                loadPreviousPurchaseInfo(newVal);
+            }
+        });
 
         // Set up table columns
         dateCol.setCellValueFactory(new PropertyValueFactory<>("date"));
         descriptionCol.setCellValueFactory(new PropertyValueFactory<>("description"));
         categoryCol.setCellValueFactory(new PropertyValueFactory<>("category"));
-        costCol.setCellValueFactory(new PropertyValueFactory<>("cost"));
+        
+        // Price column shows cost per unit (need to calculate from stored total cost)
+        costCol.setCellValueFactory(cellData -> {
+            CostEntry entry = cellData.getValue();
+            // Calculate cost per unit from total cost and total quantity
+            // For feed: if 2 bags at $47 each = $94 total, we want to show $47 per unit
+            // We need to reverse the calculation: totalCost ÷ (totalPounds ÷ poundsPerUnit)
+            double costPerUnit = entry.getCost(); // This is total cost
+            if ("Feed".equals(entry.getCategory()) && !entry.getUnitSize().isEmpty()) {
+                double poundsPerUnit = getPoundsPerUnit(entry.getUnitSize());
+                double units = entry.getQuantity() / poundsPerUnit; // Convert total pounds back to units
+                costPerUnit = units > 0 ? entry.getCost() / units : 0.0;
+            } else {
+                // For non-feed items, assume cost is already per unit
+                costPerUnit = entry.getQuantity() > 0 ? entry.getCost() / entry.getQuantity() : 0.0;
+            }
+            return new javafx.beans.property.SimpleObjectProperty<Number>(costPerUnit);
+        });
+        
         quantityCol.setCellValueFactory(new PropertyValueFactory<>("quantity"));
-        totalCol.setCellValueFactory(new PropertyValueFactory<>("total"));
+        unitSizeCol.setCellValueFactory(new PropertyValueFactory<>("unitSize"));
+        pricePerCol.setCellValueFactory(cellData -> {
+            CostEntry entry = cellData.getValue();
+            double pricePerLb = entry.getQuantity() > 0 ? entry.getCost() / entry.getQuantity() : 0.0;
+            return new javafx.beans.property.SimpleObjectProperty<Number>(pricePerLb);
+        });
+        
+        // Total Cost column shows the total amount paid
+        totalCostCol.setCellValueFactory(new PropertyValueFactory<>("cost")); // cost field stores total cost
 
         // Format currency columns
         costCol.setCellFactory(column -> new TableCell<CostEntry, Number>() {
@@ -68,7 +145,8 @@ public class CostTrackerController {
             }
         });
 
-        totalCol.setCellFactory(column -> new TableCell<CostEntry, Number>() {
+        // Format total cost column as currency
+        totalCostCol.setCellFactory(column -> new TableCell<CostEntry, Number>() {
             @Override
             protected void updateItem(Number item, boolean empty) {
                 super.updateItem(item, empty);
@@ -80,41 +158,51 @@ public class CostTrackerController {
             }
         });
 
+        // Format price per lb column as currency
+        pricePerCol.setCellFactory(column -> new TableCell<CostEntry, Number>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(String.format("$%.2f/lb", item.doubleValue()));
+                }
+            }
+        });
+
+        // Format quantity column as whole numbers
+        quantityCol.setCellFactory(column -> new TableCell<CostEntry, Number>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText("");
+                } else {
+                    setText(String.format("%.0f lbs", item.doubleValue()));
+                }
+            }
+        });
+
         // Bind table to data
         costTable.setItems(costData);
-
-        // Initialize database table
-        initializeCostTable();
 
         // Load existing data
         loadCostEntries();
 
         // Listen for changes to update summary
-        costData.addListener((javafx.collections.ListChangeListener<CostEntry>) change -> updateSummary());
+        costData.addListener((javafx.collections.ListChangeListener<CostEntry>) change -> {
+            updateSummary();
+        });
         updateSummary();
+        
+        // Enable/disable edit button based on selection
+        costTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            editButton.setDisable(newSelection == null);
+        });
+        
     }
 
-    private void initializeCostTable() {
-        try (Connection conn = DriverManager.getConnection(DB_URL);
-             Statement stmt = conn.createStatement()) {
-            
-            String createTableSQL = """
-                CREATE TABLE IF NOT EXISTS cost_entries (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    date TEXT NOT NULL,
-                    description TEXT NOT NULL,
-                    category TEXT NOT NULL,
-                    cost REAL NOT NULL,
-                    quantity REAL NOT NULL,
-                    total REAL NOT NULL
-                )
-                """;
-            stmt.execute(createTableSQL);
-            
-        } catch (SQLException e) {
-            showError("Database Error", "Could not initialize cost tracking table: " + e.getMessage());
-        }
-    }
 
     @FXML
     private void addCostEntry() {
@@ -122,26 +210,47 @@ public class CostTrackerController {
             // Validate input
             LocalDate date = datePicker.getValue();
             String description = descriptionField.getText().trim();
-            String category = categoryField.getText().trim();
+            String category = expenseTypeCombo.getValue();
+            String ingredient = null;
+            if ("Feed".equals(category)) {
+                ingredient = ingredientCombo.getValue();
+                if (ingredient == null || ingredient.isEmpty()) {
+                    showError("Input Error", "Please select an ingredient for feed expenses.");
+                    return;
+                }
+            }
             String costText = costField.getText().trim();
             String quantityText = quantityField.getText().trim();
 
-            if (date == null || description.isEmpty() || category.isEmpty() || 
+            if (date == null || description.isEmpty() || category == null || category.isEmpty() || 
                 costText.isEmpty() || quantityText.isEmpty()) {
                 showError("Input Error", "Please fill in all fields.");
                 return;
             }
 
-            double cost = Double.parseDouble(costText);
-            double quantity = Double.parseDouble(quantityText);
+            double costPerUnit = Double.parseDouble(costText);
+            double quantityUnits = Double.parseDouble(quantityText);
 
-            if (cost < 0 || quantity < 0) {
+            if (costPerUnit < 0 || quantityUnits < 0) {
                 showError("Input Error", "Cost and quantity must be positive numbers.");
                 return;
             }
 
-            // Create new entry
-            CostEntry entry = new CostEntry(date, description, category, cost, quantity);
+            // Calculate total cost = quantity × cost per unit
+            double totalCost = quantityUnits * costPerUnit;
+
+            // For feed expenses, convert quantity to total pounds for accurate price per lb calculation
+            // Example: 2 bags × 50 lbs/bag = 100 total lbs, so $94 ÷ 100 lbs = $0.94/lb
+            double totalPounds = quantityUnits;
+            String unitSize = "";
+            if ("Feed".equals(category)) {
+                String priceUnit = priceUnitCombo.getValue();
+                totalPounds = quantityUnits * getPoundsPerUnit(priceUnit);
+                unitSize = priceUnit;
+            }
+
+            // Create new entry: store total cost and total pounds/units
+            CostEntry entry = new CostEntry(date, description, category, ingredient, unitSize, totalCost, totalPounds);
             
             // Save to database
             saveCostEntry(entry);
@@ -158,7 +267,7 @@ public class CostTrackerController {
     }
 
     private void saveCostEntry(CostEntry entry) {
-        String sql = "INSERT INTO cost_entries (date, description, category, cost, quantity, total) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO cost_entries (date, description, category, ingredient, unitSize, cost, quantity, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         
         try (Connection conn = DriverManager.getConnection(DB_URL);
              PreparedStatement pstmt = conn.prepareStatement(sql)) {
@@ -166,9 +275,11 @@ public class CostTrackerController {
             pstmt.setString(1, entry.getDate().toString());
             pstmt.setString(2, entry.getDescription());
             pstmt.setString(3, entry.getCategory());
-            pstmt.setDouble(4, entry.getCost());
-            pstmt.setDouble(5, entry.getQuantity());
-            pstmt.setDouble(6, entry.getTotal());
+            pstmt.setString(4, entry.getIngredient());
+            pstmt.setString(5, entry.getUnitSize());
+            pstmt.setDouble(6, entry.getCost());
+            pstmt.setDouble(7, entry.getQuantity());
+            pstmt.setDouble(8, entry.getTotal());
             
             pstmt.executeUpdate();
             
@@ -186,14 +297,25 @@ public class CostTrackerController {
              ResultSet rs = stmt.executeQuery(sql)) {
             
             while (rs.next()) {
-                LocalDate date = LocalDate.parse(rs.getString("date"));
-                String description = rs.getString("description");
-                String category = rs.getString("category");
-                double cost = rs.getDouble("cost");
-                double quantity = rs.getDouble("quantity");
-                
-                CostEntry entry = new CostEntry(date, description, category, cost, quantity);
-                costData.add(entry);
+                try {
+                    LocalDate date = LocalDate.parse(rs.getString("date"));
+                    String description = rs.getString("description");
+                    String category = rs.getString("category");
+                    String ingredient = rs.getString("ingredient");
+                    String unitSize = rs.getString("unitSize");
+                    double cost = rs.getDouble("cost");
+                    double quantity = rs.getDouble("quantity");
+                    
+                    CostEntry entry = new CostEntry(date, description, category, ingredient, unitSize != null ? unitSize : "", cost, quantity);
+                    costData.add(entry);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            
+            // Force table refresh after loading data
+            if (!costData.isEmpty()) {
+                costTable.refresh();
             }
             
         } catch (SQLException e) {
@@ -222,6 +344,69 @@ public class CostTrackerController {
     }
 
     @FXML
+    private void editSelectedEntry() {
+        CostEntry selectedEntry = costTable.getSelectionModel().getSelectedItem();
+        if (selectedEntry == null) return;
+        
+        // Populate form with selected entry data
+        datePicker.setValue(selectedEntry.getDate());
+        expenseTypeCombo.setValue(selectedEntry.getCategory());
+        
+        // Handle ingredient selection for feed expenses
+        if ("Feed".equals(selectedEntry.getCategory())) {
+            ingredientCombo.setValue(selectedEntry.getIngredient());
+        }
+        
+        descriptionField.setText(selectedEntry.getDescription());
+        
+        // Convert stored values back to input format (cost per unit and quantity in units)
+        if ("Feed".equals(selectedEntry.getCategory())) {
+            // Assume the most common case (50lb bags) for editing
+            // User can adjust the price unit if needed
+            priceUnitCombo.setValue("50lbs");
+            double originalQuantityUnits = selectedEntry.getQuantity() / 50.0; // Convert from total lbs to bags
+            double costPerUnit = selectedEntry.getCost() / originalQuantityUnits; // Convert from total cost to cost per unit
+            costField.setText(String.format("%.2f", costPerUnit));
+            quantityField.setText(String.format("%.0f", originalQuantityUnits));
+        } else {
+            // For non-feed items, assume 1:1 quantity mapping
+            double originalQuantityUnits = selectedEntry.getQuantity();
+            double costPerUnit = selectedEntry.getCost() / originalQuantityUnits;
+            costField.setText(String.format("%.2f", costPerUnit));
+            quantityField.setText(String.format("%.0f", originalQuantityUnits));
+        }
+        
+        // Remove the selected entry from table and database so it can be re-added
+        costData.remove(selectedEntry);
+        deleteEntryFromDatabase(selectedEntry);
+        
+        showInfo("Edit Entry", "Entry loaded for editing. Modify the values and click 'Add Entry' to save changes.");
+    }
+
+    @FXML
+    private void showSpendingReports() {
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
+                getClass().getResource("/org/pigfeed/pigfeedapp/spending-reports-view.fxml")
+            );
+            javafx.scene.Parent reportsRoot = loader.load();
+            
+            javafx.stage.Stage reportsStage = new javafx.stage.Stage();
+            reportsStage.setTitle("Spending Reports");
+            setApplicationIcon(reportsStage);
+            reportsStage.setScene(new javafx.scene.Scene(reportsRoot, 900, 600));
+            reportsStage.show();
+            
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+            showError("Navigation Error", "Could not open spending reports: " + e.getMessage());
+        } catch (Exception e) {
+            e.printStackTrace();
+            showError("Unexpected Error", "An unexpected error occurred: " + e.getMessage());
+        }
+    }
+
+    @FXML
     private void backToWelcome() {
         try {
             Parent welcomeRoot = FXMLLoader.load(
@@ -229,31 +414,194 @@ public class CostTrackerController {
             );
             
             Stage stage = (Stage) costTable.getScene().getWindow();
-            Scene welcomeScene = new Scene(welcomeRoot);
+            Scene welcomeScene = new Scene(welcomeRoot, 600, 400);
             stage.setScene(welcomeScene);
             stage.setTitle("Pig Feed App");
-            stage.sizeToScene();
+            setApplicationIcon(stage);
+            stage.centerOnScreen();
             
         } catch (IOException e) {
             showError("Navigation Error", "Could not return to welcome screen: " + e.getMessage());
+        }
+    }
+    
+    @FXML
+    private void goToFeedMix() {
+        try {
+            Parent feedMixRoot = FXMLLoader.load(
+                getClass().getResource("/org/pigfeed/pigfeedapp/feed-mix-view.fxml")
+            );
+            
+            Stage stage = (Stage) costTable.getScene().getWindow();
+            Scene feedMixScene = new Scene(feedMixRoot, 900, 700);
+            stage.setScene(feedMixScene);
+            stage.setTitle("Feed Mix Calculator");
+            setApplicationIcon(stage);
+            stage.centerOnScreen();
+            
+        } catch (IOException e) {
+            showError("Navigation Error", "Could not open feed mix calculator: " + e.getMessage());
         }
     }
 
     private void clearForm() {
         datePicker.setValue(LocalDate.now());
         descriptionField.clear();
-        categoryField.clear();
+        expenseTypeCombo.setValue("Feed"); // Reset to default
+        ingredientCombo.getSelectionModel().clearSelection();
+        priceUnitCombo.setValue("50lbs");
+        // Keep Feed fields visible since it's the default
+        ingredientLabel.setVisible(true);
+        feedTypeBox.setVisible(true);
+        priceUnitLabel.setVisible(true);
+        priceUnitCombo.setVisible(true);
         costField.clear();
         quantityField.clear();
     }
 
     private void updateSummary() {
         double totalCost = costData.stream()
-            .mapToDouble(CostEntry::getTotal)
+            .mapToDouble(CostEntry::getCost)
             .sum();
         
         totalCostLabel.setText(String.format("Total Cost: $%.2f", totalCost));
         entryCountLabel.setText("Entries: " + costData.size());
+    }
+
+    private void loadIngredientsIntoCombo() {
+        ingredientCombo.getItems().clear();
+        String sql = "SELECT name FROM ingredients ORDER BY name";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                ingredientCombo.getItems().add(rs.getString("name"));
+            }
+            
+        } catch (SQLException e) {
+            showError("Database Error", "Could not load ingredients: " + e.getMessage());
+        }
+    }
+    
+    private void loadPreviousPurchaseInfo(String ingredientName) {
+        // First, always set the description to the ingredient name
+        descriptionField.setText(ingredientName);
+        
+        // Then try to load the most recent purchase info for this ingredient
+        String sql = "SELECT cost, quantity FROM cost_entries WHERE ingredient = ? AND category = 'Feed' ORDER BY date DESC LIMIT 1";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, ingredientName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // Auto-populate with previous purchase info
+                    double cost = rs.getDouble("cost");
+                    double quantity = rs.getDouble("quantity");
+                    
+                    costField.setText(String.format("%.2f", cost));
+                    quantityField.setText(String.format("%.0f", quantity));
+                }
+            }
+            
+        } catch (SQLException e) {
+            // If no previous purchase found or error, just keep the description
+        }
+    }
+
+    private void deleteEntryFromDatabase(CostEntry entry) {
+        // Use ROWID to delete the specific entry since SQLite doesn't support LIMIT in DELETE
+        String sql = "DELETE FROM cost_entries WHERE ROWID = (SELECT ROWID FROM cost_entries WHERE date = ? AND description = ? AND category = ? AND cost = ? AND quantity = ? AND unitSize = ? LIMIT 1)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, entry.getDate().toString());
+            pstmt.setString(2, entry.getDescription());
+            pstmt.setString(3, entry.getCategory());
+            pstmt.setDouble(4, entry.getCost());
+            pstmt.setDouble(5, entry.getQuantity());
+            pstmt.setString(6, entry.getUnitSize());
+            
+            pstmt.executeUpdate();
+            
+        } catch (SQLException e) {
+            showError("Database Error", "Could not delete cost entry: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Converts price units to total pounds for accurate price per pound calculation
+     * Example: If user enters 1 bag of "50lbs" corn for $15, this returns 50.0
+     * So we calculate $15 ÷ 50 lbs = $0.30/lb instead of $15/lb
+     */
+    private double getPoundsPerUnit(String priceUnit) {
+        return switch (priceUnit) {
+            case "lb" -> 1.0;        // Individual pounds
+            case "50lbs" -> 50.0;    // Standard feed bag size
+            case "100lbs" -> 100.0;  // Large feed bag
+            case "ton" -> 2000.0;    // Bulk feed purchase (1 ton = 2000 lbs)
+            default -> 1.0;          // Default to 1 lb if unknown unit
+        };
+    }
+
+    @FXML
+    private void showAddFeedTypeDialog() {
+        // Create a simple input dialog for adding new feed types
+        javafx.scene.control.TextInputDialog dialog = new javafx.scene.control.TextInputDialog();
+        dialog.setTitle("Add New Feed Type");
+        dialog.setHeaderText("Enter Feed Type Information");
+        dialog.setContentText("Feed Type Name:");
+        
+        java.util.Optional<String> result = dialog.showAndWait();
+        result.ifPresent(feedTypeName -> {
+            if (!feedTypeName.trim().isEmpty()) {
+                // Add the new feed type to the ingredients table with basic nutrition values
+                addNewFeedType(feedTypeName.trim());
+                // Refresh the dropdown
+                loadIngredientsIntoCombo();
+                // Select the newly added feed type
+                ingredientCombo.setValue(feedTypeName.trim());
+            }
+        });
+    }
+    
+    /**
+     * Adds a new feed type to the ingredients database with default nutrition values
+     * Users can later edit these values in the Feed Mix Calculator
+     */
+    private void addNewFeedType(String feedTypeName) {
+        String sql = "INSERT OR REPLACE INTO ingredients(name, crudeProtein, crudeFat, crudeFiber, lysine) VALUES(?,?,?,?,?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, feedTypeName);
+            // Set default nutrition values - users can edit these later
+            ps.setDouble(2, 14.0);  // Default protein %
+            ps.setDouble(3, 4.0);   // Default fat %
+            ps.setDouble(4, 5.0);   // Default fiber %
+            ps.setDouble(5, 0.8);   // Default lysine %
+            
+            ps.executeUpdate();
+            
+            showSuccess("Success", "Feed type '" + feedTypeName + "' added successfully!\n" + 
+                       "Default nutrition values have been set. You can edit them in the Feed Mix Calculator.");
+            
+        } catch (SQLException e) {
+            e.printStackTrace();
+            showError("Database Error", "Could not add feed type: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the application icon for any stage/window
+     */
+    private void setApplicationIcon(javafx.stage.Stage stage) {
+        try {
+            stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")));
+        } catch (Exception e) {
+            System.err.println("Could not load application icon: " + e.getMessage());
+        }
     }
 
     private void showError(String title, String message) {
@@ -261,6 +609,71 @@ public class CostTrackerController {
         alert.setTitle(title);
         alert.setHeaderText(null);
         alert.setContentText(message);
+        // Add icon to dialog
+        try {
+            javafx.stage.Stage stage = (javafx.stage.Stage) alert.getDialogPane().getScene().getWindow();
+            setApplicationIcon(stage);
+        } catch (Exception e) {
+            // Ignore if can't set icon
+        }
         alert.showAndWait();
+    }
+    
+    private void showSuccess(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        // Add icon to dialog
+        try {
+            javafx.stage.Stage stage = (javafx.stage.Stage) alert.getDialogPane().getScene().getWindow();
+            setApplicationIcon(stage);
+        } catch (Exception e) {
+            // Ignore if can't set icon
+        }
+        alert.showAndWait();
+    }
+    
+    private void showInfo(String title, String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        // Add icon to dialog
+        try {
+            javafx.stage.Stage stage = (javafx.stage.Stage) alert.getDialogPane().getScene().getWindow();
+            setApplicationIcon(stage);
+        } catch (Exception e) {
+            // Ignore if can't set icon
+        }
+        alert.showAndWait();
+    }
+    
+    private String loadLastPriceUnit() {
+        String sql = "SELECT value FROM user_preferences WHERE key = 'lastPriceUnit'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("value");
+                }
+            }
+        } catch (SQLException e) {
+            // Ignore error, will return null to use default
+        }
+        return null; // Default to null so caller can use "50lbs"
+    }
+    
+    private void saveLastPriceUnit(String priceUnit) {
+        String sql = "INSERT OR REPLACE INTO user_preferences (key, value) VALUES ('lastPriceUnit', ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, priceUnit);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            // Silently ignore error
+        }
     }
 }

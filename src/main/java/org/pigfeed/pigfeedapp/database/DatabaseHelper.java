@@ -83,10 +83,75 @@ public class DatabaseHelper {
                 );
             """);
 
+            // Cost tracking table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS cost_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    category TEXT NOT NULL,
+                    ingredient TEXT,
+                    unitSize TEXT,
+                    cost REAL NOT NULL,
+                    quantity REAL NOT NULL,
+                    total REAL NOT NULL
+                );
+            """);
+
+            // Migrate existing ingredients table to add price columns if they don't exist
+            migrateIngredientsTable(stmt);
+            
+            // Migrate cost_entries table to add ingredient column if it doesn't exist
+            migrateCostEntriesTable(stmt);
+            
+            // Create user preferences table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS user_preferences (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                );
+            """);
+
         } catch (SQLException e) {
             // Log and/or show an alert
             System.err.println("Failed to initialize database:");
             e.printStackTrace();
+        }
+    }
+
+    private static void migrateIngredientsTable(Statement stmt) throws SQLException {
+        // Check if price column exists, if not add it
+        try {
+            stmt.execute("SELECT price FROM ingredients LIMIT 1");
+        } catch (SQLException e) {
+            // Column doesn't exist, add it
+            stmt.execute("ALTER TABLE ingredients ADD COLUMN price REAL DEFAULT 0.0");
+        }
+        
+        // Check if priceUnit column exists, if not add it
+        try {
+            stmt.execute("SELECT priceUnit FROM ingredients LIMIT 1");
+        } catch (SQLException e) {
+            // Column doesn't exist, add it
+            stmt.execute("ALTER TABLE ingredients ADD COLUMN priceUnit TEXT DEFAULT '50lbs'");
+        }
+    }
+    
+    private static void migrateCostEntriesTable(Statement stmt) throws SQLException {
+        // Check if ingredient column exists, if not add it
+        try {
+            stmt.execute("SELECT ingredient FROM cost_entries LIMIT 1");
+        } catch (SQLException e) {
+            // Column doesn't exist, add it
+            stmt.execute("ALTER TABLE cost_entries ADD COLUMN ingredient TEXT");
+        }
+        
+        // Check if unitSize column exists, if not add it
+        try {
+            stmt.execute("SELECT unitSize FROM cost_entries LIMIT 1");
+        } catch (SQLException e) {
+            // Column doesn't exist, add it
+            stmt.execute("ALTER TABLE cost_entries ADD COLUMN unitSize TEXT");
         }
     }
 }

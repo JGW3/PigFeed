@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.chart.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="org.pigfeed.pigfeedapp.controllers.SpendingReportsController">
+   
+   <top>
+      <VBox spacing="10.0" style="-fx-padding: 20;">
+         <Label text="Spending Reports" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
+         
+         <HBox spacing="15.0">
+            <Label text="Time Period:" />
+            <Button fx:id="weeklyButton" onAction="#showWeeklyReports" text="Weekly" style="-fx-background-color: lightblue;" />
+            <Button fx:id="monthlyButton" onAction="#showMonthlyReports" text="Monthly" />
+            <Button fx:id="ytdButton" onAction="#showYtdReports" text="Year to Date" />
+         </HBox>
+         
+         <HBox spacing="20.0">
+            <Label fx:id="totalSpendingLabel" text="Total: $0.00" style="-fx-font-weight: bold;" />
+            <Label fx:id="feedCostsLabel" text="Feed: $0.00" />
+            <Label fx:id="otherCostsLabel" text="Other: $0.00" />
+         </HBox>
+      </VBox>
+   </top>
+   
+   <center>
+      <SplitPane orientation="VERTICAL" dividerPositions="0.6">
+         <VBox>
+            <HBox>
+               <VBox HBox.hgrow="ALWAYS">
+                  <Label text="Spending Trends by Category" style="-fx-font-weight: bold; -fx-padding: 10;" />
+                  <LineChart fx:id="spendingChart" prefHeight="200">
+                     <xAxis>
+                        <CategoryAxis fx:id="timeAxis" />
+                     </xAxis>
+                     <yAxis>
+                        <NumberAxis fx:id="amountAxis" label="Amount ($)" />
+                     </yAxis>
+                  </LineChart>
+               </VBox>
+               <VBox style="-fx-padding: 10;" spacing="5">
+                  <Label text="Categories:" style="-fx-font-weight: bold;" />
+                  <VBox fx:id="legendBox" spacing="5" />
+               </VBox>
+            </HBox>
+         </VBox>
+         <TableView fx:id="spendingTable">
+            <columns>
+               <TableColumn fx:id="dateColumn" text="Date" prefWidth="100" />
+               <TableColumn fx:id="categoryColumn" text="Category" prefWidth="120" />
+               <TableColumn fx:id="descriptionColumn" text="Description" prefWidth="200" />
+               <TableColumn fx:id="amountColumn" text="Amount" prefWidth="100" />
+            </columns>
+         </TableView>
+      </SplitPane>
+   </center>
+   
+   <bottom>
+      <HBox spacing="10.0" style="-fx-padding: 10; -fx-alignment: center-right;">
+         <Button onAction="#closeWindow" text="Close" />
+      </HBox>
+   </bottom>
+</BorderPane>
