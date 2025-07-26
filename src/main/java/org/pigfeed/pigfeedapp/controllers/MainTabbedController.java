@@ -67,7 +67,6 @@ public class MainTabbedController {
                 // Preload Feed Mix Calculator tab first (likely used more often)
                 if (!feedMixLoaded) {
                     javafx.application.Platform.runLater(() -> {
-                        System.out.println("Background preloading Feed Mix Calculator...");
                         loadFeedMixTab();
                     });
                 }
@@ -76,12 +75,9 @@ public class MainTabbedController {
                 Thread.sleep(1000);
                 if (!costTrackerLoaded) {
                     javafx.application.Platform.runLater(() -> {
-                        System.out.println("Background preloading Cost Tracker...");
                         loadCostTrackerTab();
                     });
                 }
-                
-                System.out.println("Background preloading complete!");
                 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
