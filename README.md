@@ -1,5 +1,9 @@
 # 🐷 Pig Feed App
 
+<div align="center">
+  <img src="src/main/resources/images/pigLogo.png" alt="Pig Feed App Logo" width="200"/>
+</div>
+
 A comprehensive JavaFX application for managing pig feed nutrition calculations and cost tracking. Perfect for pig farmers who want to optimize feed costs while maintaining proper nutrition.
 
 ## ✨ Features
