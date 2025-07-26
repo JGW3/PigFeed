@@ -15,55 +15,48 @@
             fx:controller="org.pigfeed.pigfeedapp.controllers.WelcomeController"
             >
   <padding>
-     <Insets top="20" right="20" bottom="20" left="20"/>
+     <Insets top="10" right="20" bottom="10" left="20"/>
   </padding>
 
-  <!-- Top: title -->
-  <top>
-    <VBox alignment="CENTER">
-      <Text text="Welcome to the Pig Feed App"
-            style="-fx-font-size: 24px; -fx-font-weight: bold;"
-            textAlignment="CENTER">
-        <VBox.margin>
-          <Insets top="0" right="0" bottom="10" left="0"/>
-        </VBox.margin>
-      </Text>
-    </VBox>
-  </top>
-
-  <!-- Center: logo -->
+  <!-- Center: title, logo, and buttons all together -->
   <center>
-    <ImageView fx:id="pigLogo"
-               fitWidth="150"
-               preserveRatio="true">
-      <image>
-        <Image url="@../../../images/pigLogo.png"/>
-      </image>
-      <BorderPane.margin>
-        <Insets top="0" right="0" bottom="20" left="0"/>
-      </BorderPane.margin>
-    </ImageView>
-  </center>
-
-  <!-- Bottom: stacked buttons -->
-  <bottom>
-    <VBox alignment="CENTER" spacing="10">
+    <VBox alignment="CENTER" spacing="15">
       <children>
-        <Button fx:id="feedMixButton"
-                text="Pig Feed Mix Calculator"
-                onAction="#onFeedMix"
-                maxWidth="200"/>
-        <Button fx:id="costTrackerButton"
-                text="Pig Cost Tracker"
-                onAction="#onCostTracker"
-                maxWidth="200"/>
-        <Button fx:id="aboutButton"
-                text="About"
-                onAction="#onAbout"
-                maxWidth="120"
-                style="-fx-background-color: #607D8B; -fx-text-fill: white;"/>
+        <Text text="Welcome to the Pig Feed App"
+              style="-fx-font-size: 24px; -fx-font-weight: bold;"
+              textAlignment="CENTER" />
+              
+        <ImageView fx:id="pigLogo"
+                   fitWidth="200"
+                   preserveRatio="true">
+          <image>
+            <Image url="@../../../images/pigLogo.png"/>
+          </image>
+        </ImageView>
+        
+        <Text text="Click the buttons below or use the tabs above to navigate"
+              style="-fx-font-size: 14px;"
+              textAlignment="CENTER" />
+              
+        <VBox alignment="CENTER" spacing="10">
+          <children>
+            <Button fx:id="feedMixButton"
+                    text="Pig Feed Mix Calculator"
+                    onAction="#onFeedMix"
+                    maxWidth="200"/>
+            <Button fx:id="costTrackerButton"
+                    text="Pig Cost Tracker"
+                    onAction="#onCostTracker"
+                    maxWidth="200"/>
+            <Button fx:id="aboutButton"
+                    text="About"
+                    onAction="#onAbout"
+                    maxWidth="120"
+                    style="-fx-background-color: #607D8B; -fx-text-fill: white;"/>
+          </children>
+        </VBox>
       </children>
     </VBox>
-  </bottom>
+  </center>
 
 </BorderPane>

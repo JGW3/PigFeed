@@ -4,6 +4,9 @@
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressIndicator?>
+<?import javafx.scene.control.Tab?>
+<?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
@@ -13,119 +16,201 @@
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
 <?import javafx.scene.layout.VBox?>
 
 <BorderPane xmlns="http://javafx.com/javafx/8"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="org.pigfeed.pigfeedapp.controllers.CostTrackerController"
-            style="-fx-padding: 10;">
+            style="-fx-padding: 5;">
 
-  <!-- Top: Header and Cost Entry Panel -->
+  <!-- Header -->
   <top>
-    <VBox spacing="5">
-      <!-- Header with navigation buttons -->
-      <HBox alignment="CENTER" spacing="10" style="-fx-padding: 10 10 5 10;">
-        <HBox spacing="5">
-          <Button text="Welcome"
-                  onAction="#backToWelcome"
-                  style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;"/>
-          <Button text="Feed Mix"
-                  onAction="#goToFeedMix"
-                  style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;"/>
-        </HBox>
-        <Region HBox.hgrow="ALWAYS"/>
-        <Label text="Cost Tracker" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
-        <Region HBox.hgrow="ALWAYS"/>
-      </HBox>
-      
-      <!-- Cost Entry Panel -->
-      <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f8f8f8; -fx-border-color: #d0d0d0; -fx-border-width: 1px;">
-        <Label text="Add Cost Entry" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-        <GridPane hgap="10" vgap="8">
-          <columnConstraints>
-            <ColumnConstraints halignment="RIGHT"/>
-            <ColumnConstraints hgrow="ALWAYS"/>
-          </columnConstraints>
-
-          <Label text="Expense Type:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-          <ComboBox fx:id="expenseTypeCombo" prefWidth="150" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-
-          <Label text="Feed Type:" fx:id="ingredientLabel" GridPane.rowIndex="1" GridPane.columnIndex="0" visible="false"/>
-          <HBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="1" fx:id="feedTypeBox" visible="false">
-            <ComboBox fx:id="ingredientCombo" prefWidth="120"/>
-            <Button fx:id="addFeedTypeButton" text="Add New" onAction="#showAddFeedTypeDialog" 
-                    style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 10px;"/>
-          </HBox>
-
-          <Label text="Price Per:" fx:id="priceUnitLabel" GridPane.rowIndex="2" GridPane.columnIndex="0" visible="false"/>
-          <ComboBox fx:id="priceUnitCombo" prefWidth="150" GridPane.rowIndex="2" GridPane.columnIndex="1" visible="false"/>
-
-          <Label text="Date:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
-          <DatePicker fx:id="datePicker" prefWidth="150"
-                     GridPane.rowIndex="3" GridPane.columnIndex="1"/>
-
-          <Label text="Item Description:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
-          <TextField fx:id="descriptionField" prefWidth="200" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
-
-          <Label text="Cost per Unit ($):" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
-          <TextField fx:id="costField" prefWidth="120" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
-
-          <Label text="Quantity (Units):" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
-          <TextField fx:id="quantityField" prefWidth="120" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
-
-          <Button text="Add Entry"
-                  onAction="#addCostEntry"
-                  GridPane.rowIndex="7" GridPane.columnIndex="1"
-                  HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
-        </GridPane>
-      </VBox>
-    </VBox>
+    <HBox alignment="CENTER" spacing="10" style="-fx-padding: 5 5 10 5;">
+      <Label text="Cost Tracker" style="-fx-font-size: 18px; -fx-font-weight: bold;"/>
+    </HBox>
   </top>
 
-  <!-- Center: Cost Table -->
+  <!-- Center: TabPane with Entry Tracking and Spending Reports -->
   <center>
-    <TableView fx:id="costTable" VBox.vgrow="ALWAYS" 
-               style="-fx-table-cell-border-color: transparent; -fx-border-color: transparent;">
-      <columns>
-        <TableColumn fx:id="dateCol" text="Date" prefWidth="100"/>
-        <TableColumn fx:id="descriptionCol" text="Description" prefWidth="150"/>
-        <TableColumn fx:id="categoryCol" text="Type" prefWidth="110"/>
-        <TableColumn fx:id="costCol" text="Price" prefWidth="70"/>
-        <TableColumn fx:id="unitSizeCol" text="Per" prefWidth="60"/>
-        <TableColumn fx:id="pricePerCol" text="Price Per Lb" prefWidth="90"/>
-        <TableColumn fx:id="quantityCol" text="Total Lbs" prefWidth="80"/>
-        <TableColumn fx:id="totalCostCol" text="Total Cost" prefWidth="80"/>
-      </columns>
-    </TableView>
-  </center>
+    <TabPane fx:id="costTabPane" tabClosingPolicy="UNAVAILABLE">
+      <tabs>
+        <!-- Entry Tracking Tab -->
+        <Tab fx:id="entryTab" text="Entry Tracking">
+          <content>
+            <BorderPane>
+              <!-- Top: Cost Entry Panel -->
+              <top>
+                <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f8f8f8; -fx-border-color: #d0d0d0; -fx-border-width: 1px;">
+                  <Label text="Add Cost Entry" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                  <GridPane hgap="10" vgap="8">
+                    <columnConstraints>
+                      <ColumnConstraints halignment="RIGHT" minWidth="120"/>
+                      <ColumnConstraints halignment="LEFT" prefWidth="200" maxWidth="200"/>
+                    </columnConstraints>
 
-  <!-- Bottom: Controls and Summary -->
-  <bottom>
-    <VBox spacing="10" style="-fx-padding: 10;">
-      <children>
-        <HBox alignment="CENTER_LEFT" spacing="20">
-          <children>
-            <Label fx:id="totalCostLabel" text="Total Cost: $0.00" 
-                   style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
-            <Label fx:id="entryCountLabel" text="Entries: 0"/>
-          </children>
-        </HBox>
-        <HBox alignment="CENTER_RIGHT" spacing="10">
-          <children>
-            <Button text="Edit Selected Entry"
-                    fx:id="editButton"
-                    onAction="#editSelectedEntry"
-                    disable="true"
-                    style="-fx-background-color: #2196F3; -fx-text-fill: white;"/>
-            <Button text="Spending Reports"
-                    onAction="#showSpendingReports"  
-                    style="-fx-background-color: #FF9800; -fx-text-fill: white; -fx-font-weight: bold;"/>
-            <Button text="Clear All"
-                    onAction="#clearAllEntries"/>
-          </children>
-        </HBox>
-      </children>
-    </VBox>
-  </bottom>
+                    <Label text="Expense Type:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+                    <ComboBox fx:id="expenseTypeCombo" prefWidth="150" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+
+                    <Label text="Feed Type:" fx:id="ingredientLabel" GridPane.rowIndex="1" GridPane.columnIndex="0" visible="false"/>
+                    <HBox spacing="5" GridPane.rowIndex="1" GridPane.columnIndex="1" fx:id="feedTypeBox" visible="false">
+                      <ComboBox fx:id="ingredientCombo" prefWidth="120"/>
+                      <Button fx:id="addFeedTypeButton" text="Add New" onAction="#showAddFeedTypeDialog" 
+                              style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-size: 10px;"/>
+                    </HBox>
+
+                    <Label text="Price Per:" fx:id="priceUnitLabel" GridPane.rowIndex="2" GridPane.columnIndex="0" visible="false"/>
+                    <ComboBox fx:id="priceUnitCombo" prefWidth="150" GridPane.rowIndex="2" GridPane.columnIndex="1" visible="false"/>
+
+                    <Label text="Date:" GridPane.rowIndex="3" GridPane.columnIndex="0"/>
+                    <DatePicker fx:id="datePicker" prefWidth="150"
+                               GridPane.rowIndex="3" GridPane.columnIndex="1"/>
+
+                    <Label text="Item Description:" GridPane.rowIndex="4" GridPane.columnIndex="0"/>
+                    <TextField fx:id="descriptionField" prefWidth="150" GridPane.rowIndex="4" GridPane.columnIndex="1"/>
+
+                    <Label text="Cost per Unit ($):" GridPane.rowIndex="5" GridPane.columnIndex="0"/>
+                    <TextField fx:id="costField" prefWidth="100" GridPane.rowIndex="5" GridPane.columnIndex="1"/>
+
+                    <Label text="Quantity (Units):" GridPane.rowIndex="6" GridPane.columnIndex="0"/>
+                    <TextField fx:id="quantityField" prefWidth="100" GridPane.rowIndex="6" GridPane.columnIndex="1"/>
+
+                    <Button text="Add Entry"
+                            onAction="#addCostEntry"
+                            GridPane.rowIndex="7" GridPane.columnIndex="1"
+                            HBox.hgrow="ALWAYS" maxWidth="Infinity"/>
+                  </GridPane>
+                </VBox>
+              </top>
+
+              <!-- Center: Cost Table with Loading Spinner -->
+              <center>
+                <StackPane>
+                  <!-- Loading Spinner (initially visible) -->
+                  <VBox fx:id="costLoadingPane" alignment="CENTER" style="-fx-background-color: rgba(255,255,255,0.8);">
+                    <ProgressIndicator progress="-1" prefWidth="50" prefHeight="50"/>
+                    <Label text="Loading Cost Tracker..." style="-fx-font-size: 14px; -fx-padding: 10;"/>
+                  </VBox>
+                  
+                  <!-- Cost Table (initially hidden) -->
+                  <TableView fx:id="costTable" VBox.vgrow="ALWAYS" visible="false"
+                             style="-fx-table-cell-border-color: transparent; -fx-border-color: transparent;">
+                    <columns>
+                      <TableColumn fx:id="dateCol" text="Date" prefWidth="100"/>
+                      <TableColumn fx:id="descriptionCol" text="Description" prefWidth="150"/>
+                      <TableColumn fx:id="categoryCol" text="Type" prefWidth="110"/>
+                      <TableColumn fx:id="costCol" text="Price" prefWidth="70"/>
+                      <TableColumn fx:id="unitSizeCol" text="Per" prefWidth="60"/>
+                      <TableColumn fx:id="pricePerCol" text="Price Per Lb" prefWidth="90"/>
+                      <TableColumn fx:id="quantityCol" text="Total Lbs" prefWidth="80"/>
+                      <TableColumn fx:id="totalCostCol" text="Total Cost" prefWidth="80"/>
+                    </columns>
+                  </TableView>
+                </StackPane>
+              </center>
+
+              <!-- Bottom: Controls and Summary -->
+              <bottom>
+                <VBox spacing="10" style="-fx-padding: 10;">
+                  <children>
+                    <VBox spacing="5" alignment="CENTER_LEFT">
+                      <children>
+                        <Label fx:id="totalCostYTDLabel" text="Costs YTD: $0.00" 
+                               style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                        <Label fx:id="totalCostLabel" text="Costs Since Starting: $0.00" 
+                               style="-fx-font-size: 12px;"/>
+                        <Label fx:id="entryCountLabel" text="Entries: 0" style="-fx-font-size: 12px;"/>
+                      </children>
+                    </VBox>
+                    <HBox alignment="CENTER_RIGHT" spacing="10">
+                      <children>
+                        <Button text="Edit Selected Entry"
+                                fx:id="editButton"
+                                onAction="#editSelectedEntry"
+                                disable="true"
+                                style="-fx-background-color: #2196F3; -fx-text-fill: white;"/>
+                        <Button text="Clear All"
+                                onAction="#clearAllEntries"/>
+                      </children>
+                    </HBox>
+                  </children>
+                </VBox>
+              </bottom>
+            </BorderPane>
+          </content>
+        </Tab>
+        
+        <!-- Spending Reports Tab -->
+        <Tab fx:id="reportsTab" text="Spending Reports">
+          <content>
+            <BorderPane>
+              <!-- Top: Report Controls -->
+              <top>
+                <VBox spacing="10" style="-fx-padding: 10; -fx-background-color: #f8f8f8; -fx-border-color: #d0d0d0; -fx-border-width: 1px;">
+                  <Label text="Spending Reports" style="-fx-font-size: 16px; -fx-font-weight: bold;"/>
+                  <HBox spacing="15" alignment="CENTER_LEFT">
+                    <children>
+                      <Label text="View:"/>
+                      <ComboBox fx:id="reportPeriodCombo" prefWidth="120" promptText="Select Period"/>
+                      <Label text="Chart Type:"/>
+                      <ComboBox fx:id="chartTypeCombo" prefWidth="120" promptText="Select Chart"/>
+                      <Button text="Export to Excel" fx:id="exportButton" onAction="#exportToExcel"
+                              style="-fx-background-color: #4CAF50; -fx-text-fill: white;"/>
+                    </children>
+                  </HBox>
+                </VBox>
+              </top>
+              
+              <!-- Center: Split between Categories and Chart/Details -->
+              <center>
+                <HBox spacing="5">
+                  <!-- Left: Category Summary -->
+                  <VBox spacing="10" prefWidth="250" style="-fx-padding: 10;">
+                    <Label text="Categories" style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                    <TableView fx:id="categoryTable" prefHeight="300">
+                      <columns>
+                        <TableColumn fx:id="categoryNameCol" text="Category" prefWidth="120"/>
+                        <TableColumn fx:id="categoryAmountCol" text="Amount" prefWidth="100"/>
+                      </columns>
+                    </TableView>
+                    <VBox spacing="5">
+                      <Label fx:id="totalSpendingLabel" text="Total: $0.00" 
+                             style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                      <Label fx:id="selectedPeriodLabel" text="All Time" 
+                             style="-fx-font-size: 12px; -fx-text-fill: gray;"/>
+                    </VBox>
+                  </VBox>
+                  
+                  <!-- Right: Chart and Details -->
+                  <VBox VBox.vgrow="ALWAYS" HBox.hgrow="ALWAYS" spacing="10" style="-fx-padding: 10;">
+                    <!-- Chart Area -->
+                    <StackPane fx:id="chartContainer" prefHeight="250" 
+                               style="-fx-border-color: #d0d0d0; -fx-border-width: 1px; -fx-background-color: white;">
+                      <Label text="Select a chart type to view data visualization" 
+                             style="-fx-text-fill: gray; -fx-font-size: 12px;"/>
+                    </StackPane>
+                    
+                    <!-- Details Table -->
+                    <VBox spacing="5" VBox.vgrow="ALWAYS">
+                      <Label fx:id="detailsHeaderLabel" text="Monthly Details" 
+                             style="-fx-font-size: 14px; -fx-font-weight: bold;"/>
+                      <TableView fx:id="detailsTable" VBox.vgrow="ALWAYS">
+                        <columns>
+                          <TableColumn fx:id="detailPeriodCol" text="Period" prefWidth="100"/>
+                          <TableColumn fx:id="detailCategoryCol" text="Category" prefWidth="100"/>
+                          <TableColumn fx:id="detailAmountCol" text="Amount" prefWidth="100"/>
+                          <TableColumn fx:id="detailCountCol" text="Entries" prefWidth="80"/>
+                        </columns>
+                      </TableView>
+                    </VBox>
+                  </VBox>
+                </HBox>
+              </center>
+            </BorderPane>
+          </content>
+        </Tab>
+      </tabs>
+    </TabPane>
+  </center>
 
 </BorderPane>

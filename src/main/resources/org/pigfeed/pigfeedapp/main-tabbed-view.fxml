@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.geometry.Insets?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" 
+            fx:controller="org.pigfeed.pigfeedapp.controllers.MainTabbedController">
+   <padding>
+      <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+   </padding>
+   
+   <center>
+      <TabPane fx:id="mainTabPane" tabClosingPolicy="UNAVAILABLE">
+         <tabs>
+            <!-- Welcome Tab -->
+            <Tab fx:id="welcomeTab" text="Welcome">
+               <!-- Content loaded immediately since it's the default tab -->
+               <content>
+                  <fx:include source="welcome-view.fxml"/>
+               </content>
+            </Tab>
+            
+            <!-- Feed Mix Calculator Tab -->
+            <Tab fx:id="feedMixTab" text="Feed Mix Calculator">
+               <!-- Content loaded lazily when first accessed -->
+            </Tab>
+            
+            <!-- Cost Tracker Tab -->
+            <Tab fx:id="costTrackerTab" text="Cost Tracker">
+               <!-- Content loaded lazily when first accessed -->
+            </Tab>
+         </tabs>
+      </TabPane>
+   </center>
+</BorderPane>

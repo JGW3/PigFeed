@@ -16,25 +16,15 @@
             <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
          </padding>
          
-         <!-- Header with navigation buttons -->
+         <!-- Header -->
          <HBox alignment="CENTER" spacing="10" style="-fx-padding: 0 0 10 0;">
-            <HBox spacing="5">
-               <Button text="Welcome"
-                       onAction="#backToWelcome"
-                       style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;"/>
-               <Button text="Cost Tracker"
-                       onAction="#goToCostTracker"
-                       style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;"/>
-            </HBox>
-            <Region HBox.hgrow="ALWAYS"/>
             <Label text="Feed Mix Calculator" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
-            <Region HBox.hgrow="ALWAYS"/>
          </HBox>
          
-         <HBox spacing="10" alignment="CENTER_LEFT">
-            <Label text="Add New Ingredient or" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
-            <ComboBox fx:id="ingredientModeCombo" prefWidth="250" promptText="Edit Existing Ingredient"/>
-         </HBox>
+         <VBox spacing="5" alignment="CENTER_LEFT">
+            <Label text="Add New Ingredient or Edit Existing Ingredient:" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+            <ComboBox fx:id="ingredientModeCombo" prefWidth="250" promptText="Select ingredient to edit or leave blank to add new"/>
+         </VBox>
          
          <!-- First row: Ingredient Name -->
          <HBox spacing="15.0" alignment="CENTER_LEFT">
@@ -104,9 +94,17 @@
    </top>
    
    <center>
-      <VBox VBox.vgrow="ALWAYS">
-         <children>
-            <TableView fx:id="feedTable" VBox.vgrow="ALWAYS">
+      <StackPane>
+         <!-- Loading Spinner (initially visible) -->
+         <VBox fx:id="loadingPane" alignment="CENTER" style="-fx-background-color: rgba(255,255,255,0.8);">
+            <ProgressIndicator progress="-1" prefWidth="50" prefHeight="50"/>
+            <Label text="Loading Feed Mix Calculator..." style="-fx-font-size: 14px; -fx-padding: 10;"/>
+         </VBox>
+         
+         <!-- Main Content (initially hidden) -->
+         <VBox fx:id="contentPane" VBox.vgrow="ALWAYS" visible="false">
+            <children>
+               <TableView fx:id="feedTable" VBox.vgrow="ALWAYS">
                <columns>
                   <TableColumn fx:id="ingredientCol" prefWidth="120.0" text="Ingredient" />
                   <TableColumn fx:id="weightCol" prefWidth="90.0" text="Weight (lbs)" />
@@ -166,8 +164,9 @@
                           style="-fx-background-color: #FF9800; -fx-text-fill: white;" />
                </children>
             </HBox>
-         </children>
-      </VBox>
+            </children>
+         </VBox>
+      </StackPane>
    </center>
    
    <bottom>

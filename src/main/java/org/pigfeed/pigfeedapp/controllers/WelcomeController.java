@@ -5,8 +5,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
+import javafx.scene.control.TabPane;
 import javafx.stage.Stage;
 import javafx.scene.image.ImageView;
+import org.pigfeed.pigfeedapp.controllers.FeedMixCalculatorController;
 import java.io.IOException;
 
 public class WelcomeController {
@@ -15,59 +17,43 @@ public class WelcomeController {
     @FXML private Button feedMixButton;
     @FXML private Button aboutButton;
     @FXML private ImageView pigLogo;
+    
+    @FXML
+    public void initialize() {
+        // Pre-load Feed Mix Calculator data in background to improve performance
+        FeedMixCalculatorController.preloadData();
+    }
 
     @FXML
     private void onCostTracker() {
-        try {
-            // Load the cost-tracker FXML
-            Parent costTrackerRoot = FXMLLoader.load(
-                    getClass().getResource("/org/pigfeed/pigfeedapp/cost-tracker-view.fxml")
-            );
-
-            // Grab the stage from any control in the current scene
-            Stage stage = (Stage) costTrackerButton.getScene().getWindow();
-
-            // Create & show the new scene
-            Scene costTrackerScene = new Scene(costTrackerRoot, 800, 600);
-            stage.setScene(costTrackerScene);
-            stage.setTitle("Pig Cost Tracker");
-            // Add icon
-            try {
-                stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")));
-            } catch (Exception e) {
-                System.err.println("Could not load application icon: " + e.getMessage());
-            }
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
+        // Find the parent TabPane and switch to Cost Tracker tab
+        TabPane tabPane = findParentTabPane();
+        if (tabPane != null) {
+            // Cost Tracker is index 1 (Welcome=0, Cost Tracker=1, Feed Mix=2)
+            tabPane.getSelectionModel().select(1);
         }
     }
 
     @FXML
     private void onFeedMix() {
-        try {
-            // Load the feed‑mix FXML
-            Parent feedMixRoot = FXMLLoader.load(
-                    getClass().getResource("/org/pigfeed/pigfeedapp/feed-mix-view.fxml")
-            );
-
-            // Grab the stage from any control in the current scene
-            Stage stage = (Stage) feedMixButton.getScene().getWindow();
-
-            // Create & show the new scene
-            Scene feedMixScene = new Scene(feedMixRoot, 900, 700);
-            stage.setScene(feedMixScene);
-            stage.setTitle("Pig Feed Mix Calculator");
-            // Add icon
-            try {
-                stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")));
-            } catch (Exception e) {
-                System.err.println("Could not load application icon: " + e.getMessage());
-            }
-            stage.centerOnScreen();
-        } catch (IOException e) {
-            e.printStackTrace();
+        // Find the parent TabPane and switch to Feed Mix tab
+        TabPane tabPane = findParentTabPane();
+        if (tabPane != null) {
+            // Feed Mix is index 2 (Welcome=0, Cost Tracker=1, Feed Mix=2)
+            tabPane.getSelectionModel().select(2);
         }
+    }
+    
+    private TabPane findParentTabPane() {
+        // Walk up the scene graph to find the TabPane
+        javafx.scene.Node node = costTrackerButton;
+        while (node != null) {
+            if (node instanceof TabPane) {
+                return (TabPane) node;
+            }
+            node = node.getParent();
+        }
+        return null;
     }
     
     @FXML
@@ -93,26 +79,44 @@ public class WelcomeController {
         
         javafx.scene.control.Hyperlink githubLink = new javafx.scene.control.Hyperlink("https://github.com/JGW3/PigFeed");
         githubLink.setOnAction(e -> {
-            // Copy to clipboard and show notification
-            javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
-            javafx.scene.input.ClipboardContent clipboardContent = new javafx.scene.input.ClipboardContent();
-            clipboardContent.putString("https://github.com/JGW3/PigFeed");
-            clipboard.setContent(clipboardContent);
+            String url = "https://github.com/JGW3/PigFeed";
+            boolean browserOpened = false;
             
-            javafx.scene.control.Alert linkAlert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
-            linkAlert.setTitle("GitHub Link");
-            linkAlert.setHeaderText("Link Copied to Clipboard");
-            linkAlert.setContentText("GitHub link has been copied to your clipboard!\nPaste it into your web browser to visit the repository.");
-            
-            // Add icon to dialog
+            // Try to open in default browser first
             try {
-                javafx.stage.Stage stage = (javafx.stage.Stage) linkAlert.getDialogPane().getScene().getWindow(); 
-                stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")));
+                if (java.awt.Desktop.isDesktopSupported()) {
+                    java.awt.Desktop desktop = java.awt.Desktop.getDesktop();
+                    if (desktop.isSupported(java.awt.Desktop.Action.BROWSE)) {
+                        desktop.browse(new java.net.URI(url));
+                        browserOpened = true;
+                    }
+                }
             } catch (Exception ex) {
-                // Ignore if can't set icon
+                // Browser opening failed, will fall back to clipboard
             }
             
-            linkAlert.showAndWait();
+            if (!browserOpened) {
+                // Fallback: Copy to clipboard and show notification
+                javafx.scene.input.Clipboard clipboard = javafx.scene.input.Clipboard.getSystemClipboard();
+                javafx.scene.input.ClipboardContent clipboardContent = new javafx.scene.input.ClipboardContent();
+                clipboardContent.putString(url);
+                clipboard.setContent(clipboardContent);
+                
+                javafx.scene.control.Alert linkAlert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                linkAlert.setTitle("GitHub Link");
+                linkAlert.setHeaderText("Link Copied to Clipboard");
+                linkAlert.setContentText("Could not open browser automatically.\nGitHub link has been copied to your clipboard!\nPaste it into your web browser to visit the repository.");
+                
+                // Add icon to dialog
+                try {
+                    javafx.stage.Stage stage = (javafx.stage.Stage) linkAlert.getDialogPane().getScene().getWindow(); 
+                    stage.getIcons().add(new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")));
+                } catch (Exception ex) {
+                    // Ignore if can't set icon
+                }
+                
+                linkAlert.showAndWait();
+            }
         });
         
         content.getChildren().addAll(description, githubLink);

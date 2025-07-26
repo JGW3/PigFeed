@@ -44,11 +44,72 @@ public class CostTrackerController {
     @FXML private TableColumn<CostEntry, Number> totalCostCol;
 
     // Summary labels and edit button
+    @FXML private Label totalCostYTDLabel;
     @FXML private Label totalCostLabel;
     @FXML private Label entryCountLabel;
     @FXML private Button editButton;
+    
+    // Loading spinner and tabs
+    @FXML private javafx.scene.layout.VBox costLoadingPane;
+    @FXML private javafx.scene.control.TabPane costTabPane;
+    @FXML private javafx.scene.control.Tab entryTab;
+    @FXML private javafx.scene.control.Tab reportsTab;
+    
+    // Reports tab controls
+    @FXML private javafx.scene.control.ComboBox<String> reportPeriodCombo;
+    @FXML private javafx.scene.control.ComboBox<String> chartTypeCombo;
+    @FXML private javafx.scene.control.Button exportButton;
+    @FXML private javafx.scene.control.TableView<CategoryReportEntry> categoryTable;
+    @FXML private javafx.scene.control.TableColumn<CategoryReportEntry, String> categoryNameCol;
+    @FXML private javafx.scene.control.TableColumn<CategoryReportEntry, String> categoryAmountCol;
+    @FXML private javafx.scene.control.Label totalSpendingLabel;
+    @FXML private javafx.scene.control.Label selectedPeriodLabel;
+    @FXML private javafx.scene.layout.StackPane chartContainer;
+    @FXML private javafx.scene.control.Label detailsHeaderLabel;
+    @FXML private javafx.scene.control.TableView<DetailReportEntry> detailsTable;
+    @FXML private javafx.scene.control.TableColumn<DetailReportEntry, String> detailPeriodCol;
+    @FXML private javafx.scene.control.TableColumn<DetailReportEntry, String> detailCategoryCol;
+    @FXML private javafx.scene.control.TableColumn<DetailReportEntry, String> detailAmountCol;
+    @FXML private javafx.scene.control.TableColumn<DetailReportEntry, Integer> detailCountCol;
 
     private final ObservableList<CostEntry> costData = FXCollections.observableArrayList();
+    private final ObservableList<CategoryReportEntry> categoryReportData = FXCollections.observableArrayList();
+    private final ObservableList<DetailReportEntry> detailReportData = FXCollections.observableArrayList();
+
+    // Report data classes
+    public static class CategoryReportEntry {
+        private final String category;
+        private final double amount;
+        
+        public CategoryReportEntry(String category, double amount) {
+            this.category = category;
+            this.amount = amount;
+        }
+        
+        public String getCategory() { return category; }
+        public double getAmount() { return amount; }
+        public String getAmountFormatted() { return String.format("$%.2f", amount); }
+    }
+    
+    public static class DetailReportEntry {
+        private final String period;
+        private final String category;
+        private final double amount;
+        private final int count;
+        
+        public DetailReportEntry(String period, String category, double amount, int count) {
+            this.period = period;
+            this.category = category;
+            this.amount = amount;
+            this.count = count;
+        }
+        
+        public String getPeriod() { return period; }
+        public String getCategory() { return category; }
+        public double getAmount() { return amount; }
+        public String getAmountFormatted() { return String.format("$%.2f", amount); }
+        public int getCount() { return count; }
+    }
 
     @FXML
     public void initialize() {
@@ -80,7 +141,11 @@ public class CostTrackerController {
             priceUnitLabel.setVisible(isFeedExpense);
             priceUnitCombo.setVisible(isFeedExpense);
             if (isFeedExpense && ingredientCombo.getItems().isEmpty()) {
-                loadIngredientsIntoCombo();
+                new Thread(() -> {
+                    javafx.application.Platform.runLater(() -> {
+                        loadIngredientsIntoCombo();
+                    });
+                }).start();
             }
         });
         
@@ -89,7 +154,13 @@ public class CostTrackerController {
         feedTypeBox.setVisible(true);
         priceUnitLabel.setVisible(true);
         priceUnitCombo.setVisible(true);
-        loadIngredientsIntoCombo();
+        
+        // Load ingredients in background to avoid blocking startup
+        new Thread(() -> {
+            javafx.application.Platform.runLater(() -> {
+                loadIngredientsIntoCombo();
+            });
+        }).start();
         
         // Auto-populate previous purchase info when ingredient is selected
         ingredientCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
@@ -187,8 +258,20 @@ public class CostTrackerController {
         // Bind table to data
         costTable.setItems(costData);
 
-        // Load existing data
-        loadCostEntries();
+        // Load existing data in background
+        new Thread(() -> {
+            try {
+                Thread.sleep(100); // Brief delay to show loading
+                javafx.application.Platform.runLater(() -> {
+                    loadCostEntries();
+                    // Hide loading spinner and show table
+                    costLoadingPane.setVisible(false);
+                    costTable.setVisible(true);
+                });
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }).start();
 
         // Listen for changes to update summary
         costData.addListener((javafx.collections.ListChangeListener<CostEntry>) change -> {
@@ -201,8 +284,283 @@ public class CostTrackerController {
             editButton.setDisable(newSelection == null);
         });
         
+        // Initialize reports tab only when first accessed to avoid blocking startup
+        setupLazyReportsInitialization();
+        
     }
 
+    private boolean reportsInitialized = false;
+    
+    private void setupLazyReportsInitialization() {
+        // Only initialize reports when the Reports tab is first selected
+        costTabPane.getSelectionModel().selectedItemProperty().addListener((obs, oldTab, newTab) -> {
+            if (newTab == reportsTab && !reportsInitialized) {
+                initializeReportsTab();
+                reportsInitialized = true;
+            }
+        });
+    }
+
+    private void initializeReportsTab() {
+        // Initialize report period combo
+        reportPeriodCombo.getItems().addAll("Monthly", "Yearly", "All Time");
+        reportPeriodCombo.setValue("Monthly");
+        
+        // Initialize chart type combo
+        chartTypeCombo.getItems().addAll("Pie Chart", "Line Chart");
+        chartTypeCombo.setValue("Pie Chart");
+        
+        // Setup category table columns
+        categoryNameCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCategory()));
+        categoryAmountCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getAmountFormatted()));
+        
+        // Setup detail table columns
+        detailPeriodCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getPeriod()));
+        detailCategoryCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getCategory()));
+        detailAmountCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleStringProperty(cellData.getValue().getAmountFormatted()));
+        detailCountCol.setCellValueFactory(cellData -> 
+            new javafx.beans.property.SimpleIntegerProperty(cellData.getValue().getCount()).asObject());
+        
+        // Bind data to tables
+        categoryTable.setItems(categoryReportData);
+        detailsTable.setItems(detailReportData);
+        
+        // Add listeners for updates
+        reportPeriodCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateReports());
+        chartTypeCombo.valueProperty().addListener((obs, oldVal, newVal) -> updateChart());
+        
+        // Add click listener for category table (drill-down)
+        categoryTable.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                showCategoryDetails(newSelection.getCategory());
+            }
+        });
+        
+        // Initial load
+        updateReports();
+    }
+
+    private void updateReports() {
+        if (reportPeriodCombo == null || reportPeriodCombo.getValue() == null) return;
+        
+        String period = reportPeriodCombo.getValue();
+        categoryReportData.clear();
+        detailReportData.clear();
+        
+        // Calculate category totals based on period
+        java.util.Map<String, Double> categoryTotals = new java.util.HashMap<>();
+        java.util.Map<String, Integer> categoryCounts = new java.util.HashMap<>();
+        
+        java.time.LocalDate now = java.time.LocalDate.now();
+        
+        for (CostEntry entry : costData) {
+            boolean includeEntry = false;
+            
+            switch (period) {
+                case "Monthly":
+                    includeEntry = entry.getDate().getYear() == now.getYear() && 
+                                 entry.getDate().getMonth() == now.getMonth();
+                    break;
+                case "Yearly":
+                    includeEntry = entry.getDate().getYear() == now.getYear();
+                    break;
+                case "All Time":
+                    includeEntry = true;
+                    break;
+            }
+            
+            if (includeEntry) {
+                String category = entry.getCategory();
+                categoryTotals.put(category, categoryTotals.getOrDefault(category, 0.0) + entry.getCost());
+                categoryCounts.put(category, categoryCounts.getOrDefault(category, 0) + 1);
+            }
+        }
+        
+        // Populate category table
+        double totalSpending = 0.0;
+        for (java.util.Map.Entry<String, Double> categoryEntry : categoryTotals.entrySet()) {
+            categoryReportData.add(new CategoryReportEntry(categoryEntry.getKey(), categoryEntry.getValue()));
+            totalSpending += categoryEntry.getValue();
+        }
+        
+        // Update labels
+        totalSpendingLabel.setText(String.format("Total: $%.2f", totalSpending));
+        selectedPeriodLabel.setText(period);
+        
+        // Populate details table with monthly breakdown
+        populateDetailsTable(period);
+        
+        // Update chart
+        updateChart();
+    }
+    
+    private void populateDetailsTable(String period) {
+        if ("All Time".equals(period)) {
+            // Show yearly breakdown
+            java.util.Map<String, java.util.Map<String, Double>> yearlyData = new java.util.HashMap<>();
+            java.util.Map<String, java.util.Map<String, Integer>> yearlyCounts = new java.util.HashMap<>();
+            
+            for (CostEntry entry : costData) {
+                String year = String.valueOf(entry.getDate().getYear());
+                String category = entry.getCategory();
+                
+                yearlyData.computeIfAbsent(year, k -> new java.util.HashMap<>())
+                          .merge(category, entry.getCost(), Double::sum);
+                yearlyCounts.computeIfAbsent(year, k -> new java.util.HashMap<>())
+                           .merge(category, 1, Integer::sum);
+            }
+            
+            for (String year : yearlyData.keySet()) {
+                for (String category : yearlyData.get(year).keySet()) {
+                    detailReportData.add(new DetailReportEntry(
+                        year, category, 
+                        yearlyData.get(year).get(category),
+                        yearlyCounts.get(year).getOrDefault(category, 0)
+                    ));
+                }
+            }
+            detailsHeaderLabel.setText("Yearly Details");
+        } else {
+            // Show monthly breakdown
+            java.util.Map<String, java.util.Map<String, Double>> monthlyData = new java.util.HashMap<>();
+            java.util.Map<String, java.util.Map<String, Integer>> monthlyCounts = new java.util.HashMap<>();
+            
+            int targetYear = "Yearly".equals(period) ? java.time.LocalDate.now().getYear() : 0;
+            
+            for (CostEntry entry : costData) {
+                if (targetYear > 0 && entry.getDate().getYear() != targetYear) continue;
+                
+                String monthYear = entry.getDate().getMonth().toString() + " " + entry.getDate().getYear();
+                String category = entry.getCategory();
+                
+                monthlyData.computeIfAbsent(monthYear, k -> new java.util.HashMap<>())
+                          .merge(category, entry.getCost(), Double::sum);
+                monthlyCounts.computeIfAbsent(monthYear, k -> new java.util.HashMap<>())
+                           .merge(category, 1, Integer::sum);
+            }
+            
+            for (String monthYear : monthlyData.keySet()) {
+                for (String category : monthlyData.get(monthYear).keySet()) {
+                    detailReportData.add(new DetailReportEntry(
+                        monthYear, category,
+                        monthlyData.get(monthYear).get(category),
+                        monthlyCounts.get(monthYear).getOrDefault(category, 0)
+                    ));
+                }
+            }
+            detailsHeaderLabel.setText("Monthly Details");
+        }
+    }
+    
+    private void showCategoryDetails(String selectedCategory) {
+        // Filter details table to show only selected category
+        detailReportData.clear();
+        String period = reportPeriodCombo.getValue();
+        
+        java.util.Map<String, Double> periodTotals = new java.util.HashMap<>();
+        java.util.Map<String, Integer> periodCounts = new java.util.HashMap<>();
+        
+        for (CostEntry entry : costData) {
+            if (!entry.getCategory().equals(selectedCategory)) continue;
+            
+            boolean includeEntry = false;
+            java.time.LocalDate now = java.time.LocalDate.now();
+            
+            switch (period) {
+                case "Monthly":
+                    includeEntry = entry.getDate().getYear() == now.getYear() && 
+                                 entry.getDate().getMonth() == now.getMonth();
+                    break;
+                case "Yearly":
+                    includeEntry = entry.getDate().getYear() == now.getYear();
+                    break;
+                case "All Time":
+                    includeEntry = true;
+                    break;
+            }
+            
+            if (includeEntry) {
+                String monthYear = entry.getDate().getMonth().toString() + " " + entry.getDate().getYear();
+                periodTotals.merge(monthYear, entry.getCost(), Double::sum);
+                periodCounts.merge(monthYear, 1, Integer::sum);
+            }
+        }
+        
+        for (String monthYear : periodTotals.keySet()) {
+            detailReportData.add(new DetailReportEntry(
+                monthYear, selectedCategory,
+                periodTotals.get(monthYear),
+                periodCounts.get(monthYear)
+            ));
+        }
+        
+        detailsHeaderLabel.setText(selectedCategory + " - Monthly Details");
+    }
+    
+    private void updateChart() {
+        if (chartTypeCombo == null || chartTypeCombo.getValue() == null) return;
+        
+        chartContainer.getChildren().clear();
+        
+        String chartType = chartTypeCombo.getValue();
+        
+        if ("Pie Chart".equals(chartType)) {
+            createPieChart();
+        } else if ("Line Chart".equals(chartType)) {
+            createLineChart();
+        }
+    }
+    
+    private void createPieChart() {
+        javafx.scene.chart.PieChart pieChart = new javafx.scene.chart.PieChart();
+        
+        for (CategoryReportEntry entry : categoryReportData) {
+            javafx.scene.chart.PieChart.Data slice = new javafx.scene.chart.PieChart.Data(
+                entry.getCategory(), entry.getAmount());
+            pieChart.getData().add(slice);
+        }
+        
+        pieChart.setTitle("Spending by Category");
+        chartContainer.getChildren().add(pieChart);
+    }
+    
+    private void createLineChart() {
+        javafx.scene.chart.CategoryAxis xAxis = new javafx.scene.chart.CategoryAxis();
+        javafx.scene.chart.NumberAxis yAxis = new javafx.scene.chart.NumberAxis();
+        
+        javafx.scene.chart.LineChart<String, Number> lineChart = 
+            new javafx.scene.chart.LineChart<>(xAxis, yAxis);
+        
+        xAxis.setLabel("Period");
+        yAxis.setLabel("Amount ($)");
+        lineChart.setTitle("Spending Over Time");
+        
+        // Group data by category for line series  
+        java.util.Map<String, javafx.scene.chart.XYChart.Series<String, Number>> seriesMap = 
+            new java.util.HashMap<>();
+        
+        for (DetailReportEntry entry : detailReportData) {
+            javafx.scene.chart.XYChart.Series<String, Number> series = 
+                seriesMap.computeIfAbsent(entry.getCategory(), 
+                    k -> new javafx.scene.chart.XYChart.Series<>());
+            series.setName(entry.getCategory());
+            series.getData().add(new javafx.scene.chart.XYChart.Data<>(entry.getPeriod(), entry.getAmount()));
+        }
+        
+        lineChart.getData().addAll(seriesMap.values());
+        chartContainer.getChildren().add(lineChart);
+    }
+    
+    @FXML
+    private void exportToExcel() {
+        // TODO: Implement Excel export
+        showInfo("Export", "Excel export functionality coming soon!");
+    }
 
     @FXML
     private void addCostEntry() {
@@ -383,28 +741,6 @@ public class CostTrackerController {
         showInfo("Edit Entry", "Entry loaded for editing. Modify the values and click 'Add Entry' to save changes.");
     }
 
-    @FXML
-    private void showSpendingReports() {
-        try {
-            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(
-                getClass().getResource("/org/pigfeed/pigfeedapp/spending-reports-view.fxml")
-            );
-            javafx.scene.Parent reportsRoot = loader.load();
-            
-            javafx.stage.Stage reportsStage = new javafx.stage.Stage();
-            reportsStage.setTitle("Spending Reports");
-            setApplicationIcon(reportsStage);
-            reportsStage.setScene(new javafx.scene.Scene(reportsRoot, 900, 600));
-            reportsStage.show();
-            
-        } catch (java.io.IOException e) {
-            e.printStackTrace();
-            showError("Navigation Error", "Could not open spending reports: " + e.getMessage());
-        } catch (Exception e) {
-            e.printStackTrace();
-            showError("Unexpected Error", "An unexpected error occurred: " + e.getMessage());
-        }
-    }
 
     @FXML
     private void backToWelcome() {
@@ -464,7 +800,15 @@ public class CostTrackerController {
             .mapToDouble(CostEntry::getCost)
             .sum();
         
-        totalCostLabel.setText(String.format("Total Cost: $%.2f", totalCost));
+        // Calculate YTD costs (current year only)
+        int currentYear = java.time.LocalDate.now().getYear();
+        double ytdCost = costData.stream()
+            .filter(entry -> entry.getDate().getYear() == currentYear)
+            .mapToDouble(CostEntry::getCost)
+            .sum();
+        
+        totalCostYTDLabel.setText(String.format("Costs YTD: $%.2f", ytdCost));
+        totalCostLabel.setText(String.format("Costs Since Starting: $%.2f", totalCost));
         entryCountLabel.setText("Entries: " + costData.size());
     }
 

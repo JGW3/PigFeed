@@ -20,6 +20,10 @@ public class FeedMixCalculatorController {
     private static final String DB_URL = "jdbc:sqlite:pigfeed.db";
     
     private boolean updatingComboBox = false; // Flag to prevent recursive updates
+    private ObservableList<String> cachedIngredients = FXCollections.observableArrayList(); // Cache ingredients list
+    private static boolean dataInitialized = false; // Prevent reloading data when switching screens
+    private static ObservableList<String> staticCachedIngredients = FXCollections.observableArrayList();
+    private static ObservableList<FeedMixEntry> staticFeedData = FXCollections.observableArrayList();
 
     // --- Editor pane controls --- (removed TitledPane, now always visible)
     @FXML private ComboBox<String> ingredientModeCombo;
@@ -48,16 +52,89 @@ public class FeedMixCalculatorController {
     @FXML private Label avgPricePerLbLabel;
     @FXML private Label totalCostLabel;
     
+    // Loading and content panes
+    @FXML private VBox loadingPane;
+    @FXML private VBox contentPane;
+    
 
     private final ObservableList<FeedMixEntry> feedData = FXCollections.observableArrayList();
 
     @FXML
     public void initialize() {
+        // Fast initialization - only essential items
+        setupBasicTable();
+        setupDropdownPromptBehavior();
         
-        // 1) Load ingredients from DB and set up mode selector
-        loadAllIngredients(); // This populates the combo with "Create New Ingredient" + actual ingredients
-
-        // 2) When user selects an ingredient, load its data into the form for editing
+        // If data is already pre-loaded AND we have actual data, restore everything immediately
+        if (dataInitialized && !staticFeedData.isEmpty()) {
+            // Restore cached data immediately for instant display
+            cachedIngredients.setAll(staticCachedIngredients);
+            ingredientModeCombo.getItems().setAll(staticCachedIngredients);
+            ingredientModeCombo.setValue("");
+            feedData.setAll(staticFeedData);
+            
+            // Show content immediately, no spinner needed
+            loadingPane.setVisible(false);
+            contentPane.setVisible(true);
+            
+            // Still need to setup cell factories, but data is already visible
+            javafx.application.Platform.runLater(() -> {
+                setupTableCellFactories();
+                setupIngredientModeListener();
+                ensureEmptyRowExists();
+                // Ensure prompt text is shown after all initialization
+                ingredientModeCombo.setPromptText("Edit Existing Ingredient");
+            });
+        } else {
+            // First time loading - show spinner and load data
+            javafx.application.Platform.runLater(() -> {
+                loadAllIngredients();
+                setupTableCellFactories();
+                setupIngredientModeListener();
+                loadSavedFeedMix();
+                ensureEmptyRowExists();
+                dataInitialized = true;
+                
+                // Hide loading spinner and show content
+                loadingPane.setVisible(false);
+                contentPane.setVisible(true);
+                
+                // Ensure prompt text is shown after all initialization
+                ingredientModeCombo.setPromptText("Edit Existing Ingredient");
+            });
+        }
+    }
+    
+    private void setupDropdownPromptBehavior() {
+        // Set initial prompt text
+        ingredientModeCombo.setPromptText("Edit Existing Ingredient");
+        
+        // Hide prompt text when item is selected, show when cleared
+        ingredientModeCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
+            // Use Platform.runLater to ensure the prompt text is updated after the value change
+            javafx.application.Platform.runLater(() -> {
+                if (newVal != null && !newVal.trim().isEmpty()) {
+                    ingredientModeCombo.setPromptText(""); // Hide prompt when something is selected
+                } else {
+                    ingredientModeCombo.setPromptText("Edit Existing Ingredient"); // Show prompt when nothing selected
+                }
+            });
+        });
+    }
+    
+    private void setupBasicTable() {
+        // Basic table configuration without expensive cell factories
+        ingredientCol.setCellValueFactory(cd -> cd.getValue().ingredientProperty());
+        weightCol.setCellValueFactory(cd -> cd.getValue().weightProperty());
+        proteinCol.setCellValueFactory(cd -> cd.getValue().proteinProperty());
+        fatCol.setCellValueFactory(cd -> cd.getValue().fatProperty());
+        fiberCol.setCellValueFactory(cd -> cd.getValue().fiberProperty());
+        lysineCol.setCellValueFactory(cd -> cd.getValue().lysineProperty());
+        feedTable.setItems(feedData);
+        feedTable.setEditable(true);
+    }
+    
+    private void setupIngredientModeListener() {
         ingredientModeCombo.valueProperty().addListener((obs, oldVal, newVal) -> {
             if (!updatingComboBox && newVal != null && !newVal.isEmpty()) {
                 try {
@@ -65,25 +142,15 @@ public class FeedMixCalculatorController {
                 } catch (Exception e) {
                     System.err.println("Error loading ingredient data for: " + newVal);
                     e.printStackTrace();
-                    // Clear form as fallback
                     updatingComboBox = true;
                     clearIngredientForm();
                     updatingComboBox = false;
                 }
             }
         });
-
-        // 3) Configure mix table columns
-        ingredientCol.setCellValueFactory(cd -> cd.getValue().ingredientProperty());
-        weightCol.setCellValueFactory(cd -> cd.getValue().weightProperty());
-        proteinCol.setCellValueFactory(cd -> cd.getValue().proteinProperty());
-        fatCol.setCellValueFactory(cd -> cd.getValue().fatProperty());
-        fiberCol.setCellValueFactory(cd -> cd.getValue().fiberProperty());
-        lysineCol.setCellValueFactory(cd -> cd.getValue().lysineProperty());
-        // percentCol.setCellValueFactory(cd -> cd.getValue().percentProperty());
-
-        // 4) Make ingredient and weight editable
-        feedTable.setEditable(true);
+    }
+    
+    private void setupTableCellFactories() {
         
         // Set up ingredient column with ComboBox
         ingredientCol.setCellFactory(column -> new TableCell<FeedMixEntry, String>() {
@@ -122,10 +189,10 @@ public class FeedMixCalculatorController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    // Refresh items from current dropdown, but exclude "Create New Ingredient"
+                    // Use cached ingredients list for better performance
                     comboBox.getItems().clear();
                     comboBox.getItems().add("Select ingredient...");
-                    for (String ingredientName : ingredientModeCombo.getItems()) {
+                    for (String ingredientName : cachedIngredients) {
                         if (ingredientName != null && !ingredientName.trim().isEmpty()) {
                             comboBox.getItems().add(ingredientName);
                         }
@@ -232,13 +299,27 @@ public class FeedMixCalculatorController {
         //     recalcWeights();
         // });
 
-        feedTable.setItems(feedData);
-        
-        // Load saved feed mix from database
-        loadSavedFeedMix();
-        
-        // Ensure at least one empty row exists
-        ensureEmptyRowExists();
+    }
+    
+    // Static method to pre-load data from Welcome screen
+    public static void preloadData() {
+        if (!dataInitialized) {
+            // Run directly without Platform.runLater to avoid blocking UI thread
+                staticCachedIngredients.clear();
+                staticCachedIngredients.add(""); // Blank option
+                
+                String sql = "SELECT name FROM ingredients ORDER BY name";
+                try (Connection conn = DriverManager.getConnection(DB_URL);
+                     Statement st = conn.createStatement();
+                     ResultSet rs = st.executeQuery(sql)) {
+                    while (rs.next()) {
+                        staticCachedIngredients.add(rs.getString("name"));
+                    }
+                    dataInitialized = true;
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
+        }
     }
 
     // Called by "Save New Ingredient" button
@@ -376,15 +457,24 @@ public class FeedMixCalculatorController {
     private void loadAllIngredients() {
         updatingComboBox = true;
         try {
+            // Clear both the main combo and cache
             ingredientModeCombo.getItems().clear();
+            cachedIngredients.clear();
+            staticCachedIngredients.clear();
+            
             ingredientModeCombo.getItems().add(""); // Blank option at top to clear back to Add New
+            cachedIngredients.add(""); // Keep cache in sync
+            staticCachedIngredients.add(""); // Keep static cache in sync
             
             String sql = "SELECT name FROM ingredients ORDER BY name";
             try (Connection conn = DriverManager.getConnection(DB_URL);
                  Statement st = conn.createStatement();
                  ResultSet rs = st.executeQuery(sql)) {
                 while (rs.next()) {
-                    ingredientModeCombo.getItems().add(rs.getString("name"));
+                    String ingredientName = rs.getString("name");
+                    ingredientModeCombo.getItems().add(ingredientName);
+                    cachedIngredients.add(ingredientName);
+                    staticCachedIngredients.add(ingredientName);
                 }
             } catch (SQLException e) {
                 e.printStackTrace();
@@ -1073,6 +1163,7 @@ public class FeedMixCalculatorController {
             
             if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
                 feedData.clear();
+                staticFeedData.clear(); // Also clear static cache
                 ensureEmptyRowExists();
             }
         }
@@ -1265,6 +1356,7 @@ public class FeedMixCalculatorController {
     // Load saved feed mix from database
     private void loadSavedFeedMix() {
         feedData.clear();
+        staticFeedData.clear(); // Also clear static cache
         
         String sql = "SELECT ingredient_name, weight, protein, fat, fiber, lysine FROM current_feed_mix";
         try (Connection conn = DriverManager.getConnection(DB_URL);
@@ -1281,6 +1373,16 @@ public class FeedMixCalculatorController {
                 entry.setLysine(rs.getDouble("lysine"));
                 
                 feedData.add(entry);
+                
+                // Also add to static cache
+                FeedMixEntry staticEntry = new FeedMixEntry();
+                staticEntry.setIngredient(entry.getIngredient());
+                staticEntry.setWeight(entry.getWeight());
+                staticEntry.setProtein(entry.getProtein());
+                staticEntry.setFat(entry.getFat());
+                staticEntry.setFiber(entry.getFiber());
+                staticEntry.setLysine(entry.getLysine());
+                staticFeedData.add(staticEntry);
             }
             
             // Recalculate totals if we loaded data

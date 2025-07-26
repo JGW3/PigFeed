@@ -11,14 +11,11 @@ import org.pigfeed.pigfeedapp.database.DatabaseHelper;
 public class Main extends Application {
     @Override
     public void start(Stage stage) throws Exception {
-        // Ensure DB file & tables exist before any UI loads
-        DatabaseHelper.initializeDatabase();
-
-        // Load welcome screen
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("welcome-view.fxml"));
+        // Load main tabbed interface first for fast UI display
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("main-tabbed-view.fxml"));
         Parent root = loader.load();
-
-        Scene scene = new Scene(root);
+        
+        Scene scene = new Scene(root, 950, 750);
         stage.setTitle("Pig Feed App");
         
         // Set application icon
@@ -31,6 +28,15 @@ public class Main extends Application {
         stage.setScene(scene);
         stage.sizeToScene();     // make room for any padding
         stage.show();
+        
+        // Initialize database in background thread immediately after UI is shown
+        new Thread(() -> {
+            try {
+                DatabaseHelper.initializeDatabase();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
     }
 
     public static void main(String[] args) {
