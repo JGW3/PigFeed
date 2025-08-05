@@ -10,10 +10,21 @@ import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.stage.Stage;
 import org.pigfeed.pigfeedapp.model.CostEntry;
+import javafx.scene.control.Alert;
 
 import java.io.IOException;
 import java.sql.*;
 import java.time.LocalDate;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.ArrayList;
+import javafx.stage.FileChooser;
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.ss.util.CellRangeAddress;
+import java.awt.Desktop;
 
 public class CostTrackerController {
 
@@ -75,6 +86,396 @@ public class CostTrackerController {
     private final ObservableList<CostEntry> costData = FXCollections.observableArrayList();
     private final ObservableList<CategoryReportEntry> categoryReportData = FXCollections.observableArrayList();
     private final ObservableList<DetailReportEntry> detailReportData = FXCollections.observableArrayList();
+    
+    @FXML
+    private void exportToExcel() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Export Cost Data to Excel");
+        fileChooser.getExtensionFilters().add(
+            new FileChooser.ExtensionFilter("Excel Files", "*.xlsx")
+        );
+        
+        // Set default filename with current date
+        String defaultName = "PigFeed_CostData_" + LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd")) + ".xlsx";
+        fileChooser.setInitialFileName(defaultName);
+        
+        File file = fileChooser.showSaveDialog(costTable.getScene().getWindow());
+        if (file != null) {
+            try {
+                exportCostDataToExcel(file);
+                showAlert("Excel file exported successfully to: " + file.getAbsolutePath());
+                
+                // Ask if user wants to open the file
+                Alert openAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                openAlert.setTitle("Export Complete");
+                openAlert.setHeaderText("Excel file exported successfully!");
+                openAlert.setContentText("Would you like to open the file now?");
+                
+                if (openAlert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
+                    if (Desktop.isDesktopSupported()) {
+                        Desktop.getDesktop().open(file);
+                    }
+                }
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+                showAlert("Error exporting to Excel: " + e.getMessage());
+            }
+        }
+    }
+    
+    private void exportCostDataToExcel(File file) throws Exception {
+        try (Workbook workbook = new XSSFWorkbook()) {
+            // Create styles
+            CellStyle headerStyle = workbook.createCellStyle();
+            Font headerFont = workbook.createFont();
+            headerFont.setBold(true);
+            headerFont.setFontHeightInPoints((short) 12);
+            headerStyle.setFont(headerFont);
+            headerStyle.setFillForegroundColor(IndexedColors.LIGHT_BLUE.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setBorderBottom(BorderStyle.THIN);
+            headerStyle.setBorderTop(BorderStyle.THIN);
+            headerStyle.setBorderRight(BorderStyle.THIN);
+            headerStyle.setBorderLeft(BorderStyle.THIN);
+            
+            CellStyle titleStyle = workbook.createCellStyle();
+            Font titleFont = workbook.createFont();
+            titleFont.setBold(true);
+            titleFont.setFontHeightInPoints((short) 16);
+            titleStyle.setFont(titleFont);
+            
+            CellStyle dateStyle = workbook.createCellStyle();
+            CreationHelper createHelper = workbook.getCreationHelper();
+            dateStyle.setDataFormat(createHelper.createDataFormat().getFormat("mm/dd/yyyy"));
+            
+            CellStyle currencyStyle = workbook.createCellStyle();
+            currencyStyle.setDataFormat(createHelper.createDataFormat().getFormat("$#,##0.00"));
+            
+            // Sheet 1: All Cost Entries
+            Sheet entriesSheet = workbook.createSheet("Cost Entries");
+            createCostEntriesSheet(entriesSheet, headerStyle, titleStyle, dateStyle, currencyStyle);
+            
+            // Sheet 2: Category Summary
+            Sheet categorySheet = workbook.createSheet("Category Summary");
+            createCategorySummarySheet(categorySheet, headerStyle, titleStyle, currencyStyle);
+            
+            // Sheet 3: Monthly Details
+            Sheet monthlySheet = workbook.createSheet("Monthly Details");
+            createMonthlyDetailsSheet(monthlySheet, headerStyle, titleStyle, currencyStyle);
+            
+            // Write to file
+            try (FileOutputStream fileOut = new FileOutputStream(file)) {
+                workbook.write(fileOut);
+            }
+        }
+    }
+    
+    private void createCostEntriesSheet(Sheet sheet, CellStyle headerStyle, CellStyle titleStyle, 
+                                      CellStyle dateStyle, CellStyle currencyStyle) {
+        int rowNum = 0;
+        
+        // Title
+        Row titleRow = sheet.createRow(rowNum++);
+        org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Pig Feed Cost Tracker - All Entries");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 7));
+        
+        // Export date
+        Row exportDateRow = sheet.createRow(rowNum++);
+        exportDateRow.createCell(0).setCellValue("Exported on: " + LocalDate.now().format(DateTimeFormatter.ofPattern("MMM dd, yyyy")));
+        
+        rowNum++; // Empty row
+        
+        // Headers
+        Row headerRow = sheet.createRow(rowNum++);
+        String[] headers = {"Date", "Description", "Category", "Ingredient", "Unit Size", "Cost Per Unit", "Total Quantity", "Total Cost"};
+        for (int i = 0; i < headers.length; i++) {
+            org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        
+        // Data rows
+        double totalCost = 0.0;
+        for (CostEntry entry : costData) {
+            Row row = sheet.createRow(rowNum++);
+            
+            // Date
+            org.apache.poi.ss.usermodel.Cell dateCell = row.createCell(0);
+            if (entry.getDate() != null) {
+                dateCell.setCellValue(java.sql.Date.valueOf(entry.getDate()));
+                dateCell.setCellStyle(dateStyle);
+            }
+            
+            // Description
+            row.createCell(1).setCellValue(entry.getDescription());
+            
+            // Category
+            row.createCell(2).setCellValue(entry.getCategory());
+            
+            // Ingredient
+            row.createCell(3).setCellValue(entry.getIngredient() != null ? entry.getIngredient() : "");
+            
+            // Unit Size
+            row.createCell(4).setCellValue(entry.getUnitSize() != null ? entry.getUnitSize() : "");
+            
+            // Cost Per Unit (calculate from total cost and quantity)
+            double costPerUnit = 0.0;
+            if ("Feed".equals(entry.getCategory()) && !entry.getUnitSize().isEmpty()) {
+                double poundsPerUnit = getPoundsPerUnit(entry.getUnitSize());
+                double units = entry.getQuantity() / poundsPerUnit;
+                costPerUnit = units > 0 ? entry.getCost() / units : 0.0;
+            } else {
+                costPerUnit = entry.getQuantity() > 0 ? entry.getCost() / entry.getQuantity() : 0.0;
+            }
+            org.apache.poi.ss.usermodel.Cell costPerUnitCell = row.createCell(5);
+            costPerUnitCell.setCellValue(costPerUnit);
+            costPerUnitCell.setCellStyle(currencyStyle);
+            
+            // Total Quantity
+            row.createCell(6).setCellValue(entry.getQuantity());
+            
+            // Total Cost
+            org.apache.poi.ss.usermodel.Cell totalCostCell = row.createCell(7);
+            totalCostCell.setCellValue(entry.getCost());
+            totalCostCell.setCellStyle(currencyStyle);
+            
+            totalCost += entry.getCost();
+        }
+        
+        // Calculate YTD total (current year)
+        int currentYear = LocalDate.now().getYear();
+        double ytdTotal = costData.stream()
+            .filter(entry -> entry.getDate() != null && entry.getDate().getYear() == currentYear)
+            .mapToDouble(CostEntry::getCost)
+            .sum();
+        
+        // Total rows
+        rowNum++; // Empty row
+        
+        // YTD Total row
+        Row ytdRow = sheet.createRow(rowNum++);
+        ytdRow.createCell(6).setCellValue("YTD TOTAL (" + currentYear + "):");
+        org.apache.poi.ss.usermodel.Cell ytdTotalCell = ytdRow.createCell(7);
+        ytdTotalCell.setCellValue(ytdTotal);
+        ytdTotalCell.setCellStyle(currencyStyle);
+        
+        // Grand Total row
+        Row totalRow = sheet.createRow(rowNum++);
+        totalRow.createCell(6).setCellValue("GRAND TOTAL (All Time):");
+        org.apache.poi.ss.usermodel.Cell grandTotalCell = totalRow.createCell(7);
+        grandTotalCell.setCellValue(totalCost);
+        grandTotalCell.setCellStyle(currencyStyle);
+        
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+    }
+    
+    private void createCategorySummarySheet(Sheet sheet, CellStyle headerStyle, CellStyle titleStyle, CellStyle currencyStyle) {
+        int rowNum = 0;
+        
+        // Title
+        Row titleRow = sheet.createRow(rowNum++);
+        org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Category Summary");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 1));
+        
+        rowNum++; // Empty row
+        
+        // Headers
+        Row headerRow = sheet.createRow(rowNum++);
+        headerRow.createCell(0).setCellValue("Category");
+        headerRow.createCell(1).setCellValue("Total Amount");
+        headerRow.getCell(0).setCellStyle(headerStyle);
+        headerRow.getCell(1).setCellStyle(headerStyle);
+        
+        // Get category data (all time and YTD)
+        List<CategoryReportEntry> categories = getCategoryData();
+        List<CategoryReportEntry> ytdCategories = getCategoryDataYTD();
+        double grandTotal = 0.0;
+        double ytdGrandTotal = 0.0;
+        
+        // Add YTD column header
+        headerRow.createCell(2).setCellValue("YTD Amount");
+        headerRow.getCell(2).setCellStyle(headerStyle);
+        
+        // Create a map for easier YTD lookup
+        java.util.Map<String, Double> ytdMap = new java.util.HashMap<>();
+        for (CategoryReportEntry ytdCategory : ytdCategories) {
+            ytdMap.put(ytdCategory.getCategory(), ytdCategory.getAmount());
+        }
+        
+        for (CategoryReportEntry category : categories) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(category.getCategory());
+            
+            // All time amount
+            org.apache.poi.ss.usermodel.Cell amountCell = row.createCell(1);
+            amountCell.setCellValue(category.getAmount());
+            amountCell.setCellStyle(currencyStyle);
+            
+            // YTD amount
+            double ytdAmount = ytdMap.getOrDefault(category.getCategory(), 0.0);
+            org.apache.poi.ss.usermodel.Cell ytdAmountCell = row.createCell(2);
+            ytdAmountCell.setCellValue(ytdAmount);
+            ytdAmountCell.setCellStyle(currencyStyle);
+            
+            grandTotal += category.getAmount();
+            ytdGrandTotal += ytdAmount;
+        }
+        
+        // Total rows
+        rowNum++; // Empty row
+        
+        // YTD Total row
+        Row ytdTotalRow = sheet.createRow(rowNum++);
+        ytdTotalRow.createCell(0).setCellValue("YTD TOTAL (" + LocalDate.now().getYear() + "):");
+        org.apache.poi.ss.usermodel.Cell ytdTotalCell = ytdTotalRow.createCell(2);
+        ytdTotalCell.setCellValue(ytdGrandTotal);
+        ytdTotalCell.setCellStyle(currencyStyle);
+        
+        // Grand Total row
+        Row totalRow = sheet.createRow(rowNum++);
+        totalRow.createCell(0).setCellValue("GRAND TOTAL (All Time):");
+        org.apache.poi.ss.usermodel.Cell totalCell = totalRow.createCell(1);
+        totalCell.setCellValue(grandTotal);
+        totalCell.setCellStyle(currencyStyle);
+        
+        // Auto-size columns
+        sheet.autoSizeColumn(0);
+        sheet.autoSizeColumn(1);
+        sheet.autoSizeColumn(2);
+    }
+    
+    private void createMonthlyDetailsSheet(Sheet sheet, CellStyle headerStyle, CellStyle titleStyle, CellStyle currencyStyle) {
+        int rowNum = 0;
+        
+        // Title
+        Row titleRow = sheet.createRow(rowNum++);
+        org.apache.poi.ss.usermodel.Cell titleCell = titleRow.createCell(0);
+        titleCell.setCellValue("Monthly Details");
+        titleCell.setCellStyle(titleStyle);
+        sheet.addMergedRegion(new CellRangeAddress(0, 0, 0, 3));
+        
+        rowNum++; // Empty row
+        
+        // Headers
+        Row headerRow = sheet.createRow(rowNum++);
+        String[] headers = {"Period", "Category", "Amount", "Entry Count"};
+        for (int i = 0; i < headers.length; i++) {
+            org.apache.poi.ss.usermodel.Cell cell = headerRow.createCell(i);
+            cell.setCellValue(headers[i]);
+            cell.setCellStyle(headerStyle);
+        }
+        
+        // Get monthly details data
+        List<DetailReportEntry> details = getMonthlyDetailsData();
+        
+        for (DetailReportEntry detail : details) {
+            Row row = sheet.createRow(rowNum++);
+            row.createCell(0).setCellValue(detail.getPeriod());
+            row.createCell(1).setCellValue(detail.getCategory());
+            
+            org.apache.poi.ss.usermodel.Cell amountCell = row.createCell(2);
+            amountCell.setCellValue(detail.getAmount());
+            amountCell.setCellStyle(currencyStyle);
+            
+            row.createCell(3).setCellValue(detail.getCount());
+        }
+        
+        // Auto-size columns
+        for (int i = 0; i < headers.length; i++) {
+            sheet.autoSizeColumn(i);
+        }
+    }
+    
+    private List<CategoryReportEntry> getCategoryData() {
+        List<CategoryReportEntry> categories = new ArrayList<>();
+        String sql = "SELECT category, SUM(cost) as total FROM cost_entries GROUP BY category ORDER BY total DESC";
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                categories.add(new CategoryReportEntry(
+                    rs.getString("category"),
+                    rs.getDouble("total")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+        return categories;
+    }
+    
+    private List<CategoryReportEntry> getCategoryDataYTD() {
+        List<CategoryReportEntry> categories = new ArrayList<>();
+        int currentYear = LocalDate.now().getYear();
+        String sql = "SELECT category, SUM(cost) as total FROM cost_entries WHERE strftime('%Y', date) = ? GROUP BY category ORDER BY total DESC";
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, String.valueOf(currentYear));
+            ResultSet rs = ps.executeQuery();
+            
+            while (rs.next()) {
+                categories.add(new CategoryReportEntry(
+                    rs.getString("category"),
+                    rs.getDouble("total")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+        return categories;
+    }
+    
+    private List<DetailReportEntry> getMonthlyDetailsData() {
+        List<DetailReportEntry> details = new ArrayList<>();
+        String sql = """
+            SELECT 
+                strftime('%Y-%m', date) as month,
+                category,
+                SUM(cost) as total,
+                COUNT(*) as count
+            FROM cost_entries 
+            GROUP BY strftime('%Y-%m', date), category 
+            ORDER BY month DESC, category
+            """;
+        
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            
+            while (rs.next()) {
+                String monthStr = rs.getString("month");
+                String displayMonth = monthStr != null ? 
+                    LocalDate.parse(monthStr + "-01").format(DateTimeFormatter.ofPattern("MMM yyyy")) : 
+                    "Unknown";
+                    
+                details.add(new DetailReportEntry(
+                    displayMonth,
+                    rs.getString("category"),
+                    rs.getDouble("total"),
+                    rs.getInt("count")
+                ));
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        
+        return details;
+    }
+    
 
     // Report data classes
     public static class CategoryReportEntry {
@@ -556,11 +957,6 @@ public class CostTrackerController {
         chartContainer.getChildren().add(lineChart);
     }
     
-    @FXML
-    private void exportToExcel() {
-        // TODO: Implement Excel export
-        showInfo("Export", "Excel export functionality coming soon!");
-    }
 
     @FXML
     private void addCostEntry() {
@@ -1019,5 +1415,13 @@ public class CostTrackerController {
         } catch (SQLException e) {
             // Silently ignore error
         }
+    }
+    
+    private void showAlert(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Information");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 }

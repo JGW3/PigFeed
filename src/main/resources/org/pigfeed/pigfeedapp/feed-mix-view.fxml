@@ -21,10 +21,21 @@
             <Label text="Feed Mix Calculator" style="-fx-font-size: 18px; -fx-font-weight: bold;" />
          </HBox>
          
-         <VBox spacing="5" alignment="CENTER_LEFT">
-            <Label text="Add New Ingredient or Edit Existing Ingredient:" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
-            <ComboBox fx:id="ingredientModeCombo" prefWidth="250" promptText="Select ingredient to edit or leave blank to add new"/>
-         </VBox>
+         <HBox spacing="20" alignment="CENTER_LEFT">
+            <VBox spacing="5" alignment="CENTER_LEFT">
+               <Label text="Add New Ingredient or Edit Existing:" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+               <ComboBox fx:id="ingredientModeCombo" prefWidth="250" promptText="Select ingredient to edit or leave blank to add new"/>
+            </VBox>
+            
+            <VBox spacing="5" alignment="CENTER_LEFT">
+               <Label text="Saved Mixes:" style="-fx-font-size: 16px; -fx-font-weight: bold;" />
+               <HBox spacing="10" alignment="CENTER_LEFT">
+                  <ComboBox fx:id="savedMixCombo" prefWidth="200" promptText="Select saved mix to load"/>
+                  <Button onAction="#loadSelectedMix" text="Load Mix" 
+                          style="-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;"/>
+               </HBox>
+            </VBox>
+         </HBox>
          
          <!-- First row: Ingredient Name -->
          <HBox spacing="15.0" alignment="CENTER_LEFT">
@@ -159,6 +170,10 @@
                   <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
                </padding>
                <children>
+                  <Button onAction="#saveCurrentMix" text="Save Current Mix" 
+                          style="-fx-background-color: #4CAF50; -fx-text-fill: white; -fx-font-weight: bold;" />
+                  <Button onAction="#printCurrentMix" text="Print Current Mix" 
+                          style="-fx-background-color: #607D8B; -fx-text-fill: white; -fx-font-weight: bold;" />
                   <Button onAction="#clearMix" text="Clear Mix" />
                   <Button onAction="#zeroWeights" text="Zero Weights" 
                           style="-fx-background-color: #FF9800; -fx-text-fill: white;" />

@@ -112,6 +112,36 @@ public class DatabaseHelper {
                 );
             """);
 
+            // Create saved mixes table
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS saved_mixes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL UNIQUE,
+                    created_date TEXT NOT NULL,
+                    total_weight REAL NOT NULL,
+                    total_protein REAL NOT NULL,
+                    total_fat REAL NOT NULL,
+                    total_fiber REAL NOT NULL,
+                    total_lysine REAL NOT NULL,
+                    total_cost REAL DEFAULT 0.0
+                );
+            """);
+
+            // Create saved mix entries table (stores individual ingredients for each saved mix)
+            stmt.execute("""
+                CREATE TABLE IF NOT EXISTS saved_mix_entries (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    mix_id INTEGER NOT NULL,
+                    ingredient_name TEXT NOT NULL,
+                    weight REAL NOT NULL,
+                    protein REAL NOT NULL,
+                    fat REAL NOT NULL,
+                    fiber REAL NOT NULL,
+                    lysine REAL NOT NULL,
+                    FOREIGN KEY (mix_id) REFERENCES saved_mixes(id) ON DELETE CASCADE
+                );
+            """);
+
         } catch (SQLException e) {
             // Log and/or show an alert
             System.err.println("Failed to initialize database:");

@@ -27,10 +27,10 @@
               textAlignment="CENTER" />
               
         <ImageView fx:id="pigLogo"
-                   fitWidth="200"
+                   fitWidth="350"
                    preserveRatio="true">
           <image>
-            <Image url="@../../../images/pigLogo.png"/>
+            <Image url="@../../../images/pigfeedLogoUpscale2.png"/>
           </image>
         </ImageView>
         

@@ -29,8 +29,8 @@ public class WelcomeController {
         // Find the parent TabPane and switch to Cost Tracker tab
         TabPane tabPane = findParentTabPane();
         if (tabPane != null) {
-            // Cost Tracker is index 1 (Welcome=0, Cost Tracker=1, Feed Mix=2)
-            tabPane.getSelectionModel().select(1);
+            // Cost Tracker is index 2 (Welcome=0, Feed Mix=1, Cost Tracker=2)
+            tabPane.getSelectionModel().select(2);
         }
     }
 
@@ -39,8 +39,8 @@ public class WelcomeController {
         // Find the parent TabPane and switch to Feed Mix tab
         TabPane tabPane = findParentTabPane();
         if (tabPane != null) {
-            // Feed Mix is index 2 (Welcome=0, Cost Tracker=1, Feed Mix=2)
-            tabPane.getSelectionModel().select(2);
+            // Feed Mix is index 1 (Welcome=0, Feed Mix=1, Cost Tracker=2)
+            tabPane.getSelectionModel().select(1);
         }
     }
     
