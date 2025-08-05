@@ -92,13 +92,14 @@
           <target>17</target>
         </configuration>
       </plugin>
+      
+      <!-- JavaFX plugin for running -->
       <plugin>
         <groupId>org.openjfx</groupId>
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
         <executions>
           <execution>
-            <!-- Default configuration for running with: mvn clean javafx:run -->
             <id>default-cli</id>
             <configuration>
               <mainClass>org.pigfeed.pigfeedapp.Main</mainClass>
@@ -108,6 +109,29 @@
               <noManPages>true</noManPages>
               <stripDebug>true</stripDebug>
               <noHeaderFiles>true</noHeaderFiles>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      
+      <!-- Maven Shade plugin for creating executable JAR -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>org.pigfeed.pigfeedapp.Launcher</mainClass>
+                </transformer>
+              </transformers>
+              <finalName>PigFeedApp-${project.version}</finalName>
             </configuration>
           </execution>
         </executions>
