@@ -189,6 +189,8 @@ public class FeedMixCalculatorController {
                             feedData.remove(entry);
                             ensureEmptyRowExists();
                             recalcPercentages();
+                            // Refresh all dropdowns to update available ingredients
+                            feedTable.refresh();
                         } else if (!"Select ingredient...".equals(comboBox.getValue())) {
                             // Preserve existing weight when changing ingredient
                             double currentWeight = entry.getWeight();
@@ -200,6 +202,8 @@ public class FeedMixCalculatorController {
                             }
                             ensureEmptyRowExists();
                             recalcPercentages();
+                            // Refresh all dropdowns to update available ingredients
+                            feedTable.refresh();
                         }
                     }
                 });
@@ -211,11 +215,24 @@ public class FeedMixCalculatorController {
                 if (empty) {
                     setGraphic(null);
                 } else {
-                    // Use cached ingredients list for better performance
+                    // Use cached ingredients list, excluding already selected ones
                     comboBox.getItems().clear();
                     comboBox.getItems().add("Select ingredient...");
+                    
+                    // Get currently selected ingredients (excluding this row)
+                    FeedMixEntry currentEntry = getTableRow().getItem();
+                    java.util.Set<String> selectedIngredients = feedData.stream()
+                        .filter(entry -> entry != currentEntry && entry != null) // Exclude current row
+                        .map(FeedMixEntry::getIngredient)
+                        .filter(ingredient -> ingredient != null && 
+                                           !"Select ingredient...".equals(ingredient) && 
+                                           !"(remove)".equals(ingredient))
+                        .collect(java.util.stream.Collectors.toSet());
+                    
+                    // Add available ingredients (not already selected)
                     for (String ingredientName : cachedIngredients) {
-                        if (ingredientName != null && !ingredientName.trim().isEmpty()) {
+                        if (ingredientName != null && !ingredientName.trim().isEmpty() && 
+                            !selectedIngredients.contains(ingredientName)) {
                             comboBox.getItems().add(ingredientName);
                         }
                     }
@@ -629,8 +646,15 @@ public class FeedMixCalculatorController {
         totalFatLabel.setText(String.format("%.1f%%", totalFat));
         totalFiberLabel.setText(String.format("%.1f%%", totalFiber));
         totalLysineLabel.setText(String.format("%.2f%%", totalLysine));
-        avgPricePerLbLabel.setText(String.format("$%.2f/lb", avgPricePerLb));
-        totalCostLabel.setText(String.format("Total: $%.2f", totalCost));
+        
+        // Show cost info or helper text
+        if (totalWeightWithPrices > 0) {
+            avgPricePerLbLabel.setText(String.format("$%.2f/lb", avgPricePerLb));
+            totalCostLabel.setText(String.format("Total: $%.2f", totalCost));
+        } else {
+            avgPricePerLbLabel.setText("To track costs,");
+            totalCostLabel.setText("enter prices in Cost Tracker");
+        }
     }
 
     // Recalculate weights based on percent distribution
@@ -653,6 +677,7 @@ public class FeedMixCalculatorController {
         dialog.setTitle("Optimize by Nutrition");
         dialog.setHeaderText("Feed Mix Optimization");
         
+        
         // Create content
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -672,7 +697,7 @@ public class FeedMixCalculatorController {
         Label stageLabel = new Label("Recommended for:");
         ComboBox<String> pigStageCombo = new ComboBox<>();
         pigStageCombo.getItems().addAll("Weaner", "Grower", "Finisher");
-        pigStageCombo.setValue("Grower"); // Default to Grower
+        pigStageCombo.setValue(loadLastPigStage()); // Load last selection
         pigStageCombo.setPrefWidth(120);
         pigStageCombo.setStyle("-fx-background-color: lightyellow; -fx-border-color: gray; -fx-border-width: 1px;");
         grid.add(stageLabel, 0, 1);
@@ -740,7 +765,7 @@ public class FeedMixCalculatorController {
         java.util.function.Function<String, Double> getFeedAmountPerPig = (stage) -> {
             switch (stage) {
                 case "Weaner": return 3.0; // 1-3 lbs per day, default to 3 lbs
-                case "Finisher": return 5.5; // 5-6 lbs per day, using middle value
+                case "Finisher": return 6.0; // 5-6 lbs per day, default to 6 lbs
                 default: return 6.0; // Grower: 3-5 lbs per day, default to 6 lbs
             }
         };
@@ -839,11 +864,28 @@ public class FeedMixCalculatorController {
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
         
+        // Set dialog icon before showing
+        javafx.application.Platform.runLater(() -> {
+            try {
+                javafx.stage.Stage dialogStage = (javafx.stage.Stage) dialog.getDialogPane().getScene().getWindow();
+                dialogStage.getIcons().addAll(
+                    new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigLogo.png")),
+                    new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigfeedLogoUpscale.png")),
+                    new javafx.scene.image.Image(getClass().getResourceAsStream("/images/pigfeedLogoUpscale2.png"))
+                );
+            } catch (Exception e) {
+                System.err.println("Could not set dialog icon: " + e.getMessage());
+            }
+        });
+        
         dialog.showAndWait().ifPresent(result -> {
             if (result == ButtonType.OK) {
                 try {
                     // Save the number of pigs preference
                     saveNumberOfPigs(numberOfPigsField.getText().trim());
+                    
+                    // Save the pig stage preference
+                    saveLastPigStage(pigStageCombo.getValue());
                     
                     // Validate number of pigs
                     int numberOfPigs = Integer.parseInt(numberOfPigsField.getText().trim());
@@ -1322,6 +1364,33 @@ public class FeedMixCalculatorController {
             ps.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Could not save number of pigs preference: " + e.getMessage());
+        }
+    }
+    
+    private String loadLastPigStage() {
+        String sql = "SELECT value FROM user_preferences WHERE key = 'lastPigStage'";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            
+            if (rs.next()) {
+                return rs.getString("value");
+            }
+        } catch (SQLException e) {
+            System.err.println("Could not load last pig stage preference: " + e.getMessage());
+        }
+        return "Grower"; // Default value
+    }
+    
+    private void saveLastPigStage(String pigStage) {
+        String sql = "INSERT OR REPLACE INTO user_preferences (key, value) VALUES ('lastPigStage', ?)";
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            
+            ps.setString(1, pigStage);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Could not save last pig stage preference: " + e.getMessage());
         }
     }
     

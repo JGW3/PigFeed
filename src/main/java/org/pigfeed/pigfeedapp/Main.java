@@ -18,9 +18,13 @@ public class Main extends Application {
         Scene scene = new Scene(root, 950, 750);
         stage.setTitle("Pig Feed App");
         
-        // Set application icon
+        // Set application icon with multiple sizes
         try {
-            stage.getIcons().add(new Image(getClass().getResourceAsStream("/images/pigLogo.png")));
+            stage.getIcons().addAll(
+                new Image(getClass().getResourceAsStream("/images/pigLogo.png")),
+                new Image(getClass().getResourceAsStream("/images/pigfeedLogoUpscale.png")),
+                new Image(getClass().getResourceAsStream("/images/pigfeedLogoUpscale2.png"))
+            );
         } catch (Exception e) {
             System.err.println("Could not load application icon: " + e.getMessage());
         }

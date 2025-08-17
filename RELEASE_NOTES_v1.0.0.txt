@@ -1,0 +1,58 @@
+# 🐷 Pig Feed Management Application - Version 1.0.0
+
+A comprehensive JavaFX application for managing pig feed costs, calculating optimal feed mixes, and tracking expenses.
+
+## ✨ Features
+
+### 🧮 Feed Mix Calculator
+- **Save Current Mix**: Save feed recipes with custom names to database
+- **Load Saved Mix**: Quick access to previously saved feed formulations via dropdown
+- **Print Current Mix**: Professional PDF reports that open in your system's PDF viewer
+- **Nutritional Analysis**: Automatic calculation of protein, fat, fiber, and lysine content
+- **Mix Optimization**: Algorithm to optimize feed mixes for target nutritional values
+- **Price Optimization**: Optional cost-based optimization for economical feed mixes
+
+### 💰 Cost Tracker  
+- **Expense Tracking**: Log feed purchases with date, type, quantity, and cost
+- **Price per Pound**: Automatic calculation of unit costs
+- **Excel Export**: Export data with YTD and Total calculated fields
+- **Comprehensive Reporting**: Track spending patterns and trends
+
+### 📊 Spending Reports
+- **Time-based Analysis**: View spending by daily, weekly, monthly, or yearly periods
+- **Category Breakdown**: Analyze costs by feed type
+- **Trend Visualization**: Understand spending patterns over time
+
+## 🚀 Installation & Usage
+
+### Prerequisites
+- Java 17 or later
+- Windows, macOS, or Linux
+
+### Running the Application
+1. Download `PigFeedApp-1.0-SNAPSHOT.jar` from this release
+2. Double-click to run, or use command line:
+   ```bash
+   java -jar PigFeedApp-1.0-SNAPSHOT.jar
+   ```
+
+## 🔧 Technical Details
+- **Built with**: JavaFX 17.0.6, SQLite 3.46.1.3, Apache POI 5.4.0, iText 8.0.5
+- **Database**: Embedded SQLite for local data storage
+- **Security**: Updated dependencies to address all known vulnerabilities
+- **Packaging**: Self-contained executable JAR with all dependencies included
+
+## 📋 What's New in v1.0.0
+- ✅ Complete feed mix management with save/load functionality
+- ✅ Professional PDF printing and reporting
+- ✅ Excel export capabilities for cost tracking
+- ✅ Modern, user-friendly JavaFX interface
+- ✅ Robust database integration
+- ✅ Security updates and dependency management
+- ✅ Cross-platform compatibility
+
+## 🐛 Support
+For issues or feature requests, please visit the [GitHub repository](https://github.com/JGW3/PigFeed/issues).
+
+---
+*Generated with 🤖 [Claude Code](https://claude.ai/code)*
